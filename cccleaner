@@ -71,7 +71,7 @@ Claude Code Cleaner - Clean history from ~/.claude.json
 Usage: $(basename "$0") [options]
 
 Options:
-    -a, --all              Clean everything (histories + projects + folders + cache + history.jsonl)
+    -a, --all              Clean everything (histories + projects + folders + cache + history.jsonl + counters)
     -p, --project PATH     Clear history for specific project path
     -l, --list             List all projects
     -i, --interactive      Interactive mode to select projects
@@ -79,6 +79,8 @@ Options:
     -f, --folders          Clear ~/.claude folder contents (file-history, projects, todos, shell-snapshots, statsig, debug, history.jsonl)
     -h, --help             Show this help message
     --no-backup            Skip backup creation (not recommended)
+
+Note: --all option also resets numStartups and tipsHistory counts to 0
 
 Examples:
     $(basename "$0") --list
@@ -196,6 +198,23 @@ clear_cache() {
     fi
 }
 
+# Reset counters (numStartups, promptQueueUseCount, tipsHistory counts, and firstStartTime)
+reset_counters() {
+    local temp_file=$(mktemp)
+    local current_time=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
+
+    jq --arg time "$current_time" '.numStartups = 0 | .promptQueueUseCount = 0 | .firstStartTime = $time | if .tipsHistory then .tipsHistory |= with_entries(.value = 0) else . end' "$CLAUDE_JSON" > "$temp_file"
+
+    if [ $? -eq 0 ]; then
+        mv "$temp_file" "$CLAUDE_JSON"
+        print_success "Reset numStartups, promptQueueUseCount, tipsHistory counts to 0, and firstStartTime to now"
+    else
+        rm -f "$temp_file"
+        print_error "Failed to reset counters"
+        exit 1
+    fi
+}
+
 # Clear ~/.claude folder contents
 clear_claude_folders() {
     local cleaned=0
@@ -267,6 +286,7 @@ clean_all() {
     clear_claude_folders
     clear_cache
     clear_history_jsonl
+    reset_counters
 
     print_success "Deep clean completed!"
 }

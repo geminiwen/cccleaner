@@ -10,6 +10,7 @@ A shell script to clean history and cached data from Claude Code's `~/.claude.js
 - Clear cached data (changelog, gates, configs)
 - Clear `~/.claude` folder contents (file-history, projects, todos, shell-snapshots, statsig, debug)
 - Clear `~/.claude/history.jsonl`
+- Reset usage counters (numStartups, promptQueueUseCount, tipsHistory, firstStartTime)
 - Clean all option (everything at once)
 - Interactive mode for easy selection
 - Automatic backup creation before modifications
@@ -81,7 +82,7 @@ export PATH="$PATH:/path/to/cccleaner"
 
 | Option | Description |
 |--------|-------------|
-| `-a, --all` | Clean everything (histories + folders + cache + history.jsonl) |
+| `-a, --all` | Clean everything (histories + projects + folders + cache + history.jsonl + counters) |
 | `-p, --project PATH` | Clear history for specific project path |
 | `-l, --list` | List all projects |
 | `-i, --interactive` | Interactive mode to select projects |
@@ -131,15 +132,20 @@ Clears contents of the following directories:
 - `~/.claude/history.jsonl` - Complete conversation history log
 
 ### Clean All (--all)
-Performs all of the above cleaning operations at once
+Performs all of the above cleaning operations at once, including:
+- Clearing all project histories
+- Deleting all projects
+- Clearing all ~/.claude folders
+- Clearing cached data
+- Clearing history.jsonl
+- Resetting usage counters (numStartups, promptQueueUseCount, tipsHistory, firstStartTime)
 
 ### What's NOT Touched
 The script preserves:
-- Global settings (numStartups, installMethod, etc.)
+- Global settings (installMethod, autoUpdates, etc.)
 - User ID and authentication data
 - Project settings (allowedTools, mcpServers, etc.) - when using --folders only
-- Tips history
-- Feature flags
+- Feature flags (except cached ones)
 - `~/.claude/commands/` - Custom slash commands
 - `~/.claude/settings.json` - User settings
 
@@ -187,6 +193,7 @@ $ ./cccleaner --all
 [INFO] Performing deep clean...
 
 [SUCCESS] Cleared all project histories
+[SUCCESS] Cleared all projects
 [SUCCESS] Cleared file-history
 [SUCCESS] Cleared projects
 [SUCCESS] Cleared todos
@@ -195,6 +202,7 @@ $ ./cccleaner --all
 [SUCCESS] Cleared debug
 [SUCCESS] Cleared cached data
 [SUCCESS] Cleared history.jsonl
+[SUCCESS] Reset numStartups, promptQueueUseCount, tipsHistory counts to 0, and firstStartTime to now
 [SUCCESS] Deep clean completed!
 ```
 
