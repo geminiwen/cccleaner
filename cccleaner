@@ -71,7 +71,7 @@ Claude Code Cleaner - Clean history from ~/.claude.json
 Usage: $(basename "$0") [options]
 
 Options:
-    -a, --all              Clean everything (histories + folders + cache + history.jsonl)
+    -a, --all              Clean everything (histories + projects + folders + cache + history.jsonl)
     -p, --project PATH     Clear history for specific project path
     -l, --list             List all projects
     -i, --interactive      Interactive mode to select projects
@@ -164,6 +164,22 @@ delete_project() {
     fi
 }
 
+# Clear all projects entirely
+clear_all_projects() {
+    local temp_file=$(mktemp)
+
+    jq '.projects = {}' "$CLAUDE_JSON" > "$temp_file"
+
+    if [ $? -eq 0 ]; then
+        mv "$temp_file" "$CLAUDE_JSON"
+        print_success "Cleared all projects"
+    else
+        rm -f "$temp_file"
+        print_error "Failed to clear all projects"
+        exit 1
+    fi
+}
+
 # Clear cached data
 clear_cache() {
     local temp_file=$(mktemp)
@@ -247,6 +263,7 @@ clean_all() {
     echo
 
     clear_all_histories
+    clear_all_projects
     clear_claude_folders
     clear_cache
     clear_history_jsonl

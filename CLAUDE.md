@@ -23,13 +23,14 @@ The entire tool is a single Bash script (`cccleaner`) with no external dependenc
 
 **Operation Modes:**
 1. **Targeted cleaning** - Clear specific elements (cache, folders, individual projects)
-2. **Complete cleaning** (`--all`) - Runs all cleaning operations: histories + folders + cache + history.jsonl
+2. **Complete cleaning** (`--all`) - Runs all cleaning operations: histories + projects + folders + cache + history.jsonl
 3. **Interactive mode** - Menu-driven interface for selective cleaning
 
 ### Key Functions
 
 **Cleaning Operations:**
 - `clear_all_histories()` - Empties the `history` array in each project within .claude.json
+- `clear_all_projects()` - Deletes all project entries from .claude.json (sets projects to {})
 - `clear_claude_folders()` - Removes contents from all ~/.claude subdirectories
 - `clear_history_jsonl()` - Truncates the history.jsonl file (doesn't delete, just empties)
 - `clear_cache()` - Removes cached keys from .claude.json (cachedChangelog, cachedStatsigGates, cachedDynamicConfigs)
@@ -89,5 +90,5 @@ fi
 - The script uses `set -euo pipefail` for strict error handling
 - All modifications are atomic (via temp files)
 - The `--folders` option includes history.jsonl cleanup
-- The `--all` option is equivalent to running all individual cleaning operations
+- The `--all` option is equivalent to running all individual cleaning operations (histories + projects + folders + cache + history.jsonl)
 - Project paths in interactive mode come from `jq -r '.projects | keys[]'`
