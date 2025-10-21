@@ -1,0 +1,45 @@
+#compdef cccleaner
+
+# Zsh completion for cccleaner - Claude Code Cleaner
+# Installation:
+#   1. Copy this file to a directory in your $fpath (e.g., /usr/local/share/zsh/site-functions/)
+#   2. Or add the directory containing this file to your fpath in ~/.zshrc:
+#      fpath=(path/to/cccleaner $fpath)
+#   3. Run: compinit
+
+_cccleaner() {
+  local -a options
+  local state line
+
+  # Get list of projects from ~/.claude.json if it exists
+  local -a projects
+  if [[ -f ~/.claude.json ]] && command -v jq >/dev/null 2>&1; then
+    projects=(${(f)"$(jq -r '.projects | keys[]' ~/.claude.json 2>/dev/null)"})
+  fi
+
+  options=(
+    '(- *)'{-h,--help}'[Show help message and exit]'
+    '(- *)'{-l,--list}'[List all projects and exit]'
+    '(-p --project -i --interactive -c --cache -f --folders)'{-a,--all}'[Clean everything (histories + projects + folders + cache + history.jsonl + counters)]'
+    '(-a --all -i --interactive -c --cache -f --folders)'{-p,--project}'[Clear history for specific project]:project path:->projects'
+    '(-a --all -p --project -c --cache -f --folders)'{-i,--interactive}'[Interactive mode to select projects]'
+    '(-a --all -p --project -i --interactive -f --folders)'{-c,--cache}'[Clear cached data (changelog, etc.)]'
+    '(-a --all -p --project -i --interactive -c --cache)'{-f,--folders}'[Clear ~/.claude folder contents]'
+    '--no-backup[Skip backup creation (not recommended)]'
+  )
+
+  _arguments -s -S : $options
+
+  case $state in
+    projects)
+      if (( ${#projects[@]} > 0 )); then
+        _describe -t projects 'project path' projects
+      else
+        _message 'project path (no projects found in ~/.claude.json)'
+        _files -/
+      fi
+      ;;
+  esac
+}
+
+_cccleaner "$@"
