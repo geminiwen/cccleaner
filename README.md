@@ -24,21 +24,54 @@ A shell script to clean history and cached data from Claude Code's `~/.claude.js
 
 ## Installation
 
-1. Clone or download the script:
+### Quick Install (Recommended)
+
+Install with a single command:
+
 ```bash
-git clone <your-repo-url>
+curl -s https://raw.githubusercontent.com/geminiwen/cccleaner/master/install.sh | bash
+```
+
+This will:
+- Install `cccleaner` to `/usr/local/bin`
+- Install zsh completion to `/usr/local/share/zsh/site-functions`
+- Set appropriate permissions
+
+After installation, restart your shell or run `exec zsh` to enable zsh completion.
+
+### Manual Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/geminiwen/cccleaner.git
 cd cccleaner
 ```
 
-2. Make the script executable:
+2. Run the install script:
 ```bash
-chmod +x cccleaner
+./install.sh
 ```
 
-3. (Optional) Add to PATH for easy access:
+Or install manually:
 ```bash
-# Add to ~/.bashrc or ~/.zshrc
-export PATH="$PATH:/path/to/cccleaner"
+chmod +x cccleaner
+sudo cp cccleaner /usr/local/bin/
+sudo mkdir -p /usr/local/share/zsh/site-functions
+sudo cp _cccleaner /usr/local/share/zsh/site-functions/
+```
+
+## Uninstallation
+
+To uninstall cccleaner:
+
+```bash
+curl -s https://raw.githubusercontent.com/geminiwen/cccleaner/master/uninstall.sh | bash
+```
+
+Or if you cloned the repository:
+
+```bash
+./uninstall.sh
 ```
 
 ## Usage
