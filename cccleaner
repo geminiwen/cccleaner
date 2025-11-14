@@ -76,7 +76,7 @@ Options:
     -l, --list             List all projects
     -i, --interactive      Interactive mode to select projects
     -c, --cache            Clear cached data (changelog, etc.)
-    -f, --folders          Clear ~/.claude folder contents (file-history, projects, todos, shell-snapshots, statsig, debug, history.jsonl)
+    -f, --folders          Clear ~/.claude folder contents (file-history, projects, todos, shell-snapshots, statsig, debug, session-env, history.jsonl)
     -h, --help             Show this help message
     --no-backup            Skip backup creation (not recommended)
 
@@ -261,6 +261,13 @@ clear_claude_folders() {
         cleaned=1
     fi
 
+    # Clear session-env
+    if [ -d "$CLAUDE_DIR/session-env" ]; then
+        rm -rf "$CLAUDE_DIR/session-env"/*
+        print_success "Cleared session-env"
+        cleaned=1
+    fi
+
     if [ $cleaned -eq 0 ]; then
         print_warning "No folders found to clean"
     fi
@@ -337,7 +344,7 @@ interactive_mode() {
             fi
             ;;
         f|F)
-            read -p "Clear ~/.claude folders? (y/N): " confirm
+            read -p "Clear ~/.claude folders (file-history, projects, todos, shell-snapshots, statsig, debug, session-env, history.jsonl)? (y/N): " confirm
             if [[ "$confirm" =~ ^[Yy]$ ]]; then
                 clear_claude_folders
                 clear_history_jsonl
