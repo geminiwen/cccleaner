@@ -34,6 +34,7 @@ The entire tool is a single Bash script (`cccleaner`) with no external dependenc
 - `clear_claude_folders()` - Removes contents from all ~/.claude subdirectories
 - `clear_history_jsonl()` - Truncates the history.jsonl file (doesn't delete, just empties)
 - `clear_cache()` - Removes cached keys from .claude.json (cachedChangelog, cachedStatsigGates, cachedDynamicConfigs)
+- `clear_github_repo_paths()` - Removes githubRepoPaths from .claude.json
 - `clean_all()` - Orchestrates all cleaning functions
 
 **JSON Manipulation Pattern:**
@@ -57,6 +58,7 @@ All .claude.json modifications follow this pattern:
 
 # Specific operations
 ./cccleaner --cache           # Only cache
+./cccleaner --github-repos    # Only githubRepoPaths
 ./cccleaner --folders         # Only folders + history.jsonl
 ./cccleaner --project /path   # Specific project
 ```
@@ -90,5 +92,5 @@ fi
 - The script uses `set -euo pipefail` for strict error handling
 - All modifications are atomic (via temp files)
 - The `--folders` option includes history.jsonl cleanup
-- The `--all` option is equivalent to running all individual cleaning operations (histories + projects + folders + cache + history.jsonl)
+- The `--all` option is equivalent to running all individual cleaning operations (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters)
 - Project paths in interactive mode come from `jq -r '.projects | keys[]'`

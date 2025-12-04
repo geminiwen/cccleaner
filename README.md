@@ -8,6 +8,7 @@ A shell script to clean history and cached data from Claude Code's `~/.claude.js
 - Clear specific project history
 - Delete entire projects
 - Clear cached data (changelog, gates, configs)
+- Clear GitHub repository paths
 - Clear `~/.claude` folder contents (file-history, projects, todos, shell-snapshots, statsig, debug)
 - Clear `~/.claude/history.jsonl`
 - Reset usage counters (numStartups, promptQueueUseCount, tipsHistory, firstStartTime)
@@ -101,6 +102,11 @@ Or if you cloned the repository:
 ./cccleaner --cache
 ```
 
+### Clear GitHub repository paths
+```bash
+./cccleaner --github-repos
+```
+
 ### Clear ~/.claude folders (including history.jsonl)
 ```bash
 ./cccleaner --folders
@@ -115,11 +121,12 @@ Or if you cloned the repository:
 
 | Option | Description |
 |--------|-------------|
-| `-a, --all` | Clean everything (histories + projects + folders + cache + history.jsonl + counters) |
+| `-a, --all` | Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters) |
 | `-p, --project PATH` | Clear history for specific project path |
 | `-l, --list` | List all projects |
 | `-i, --interactive` | Interactive mode to select projects |
 | `-c, --cache` | Clear cached data (changelog, etc.) |
+| `-g, --github-repos` | Clear GitHub repository paths |
 | `-f, --folders` | Clear ~/.claude folder contents (file-history, projects, todos, shell-snapshots, statsig, debug, history.jsonl) |
 | `-h, --help` | Show help message |
 | `--no-backup` | Skip backup creation (not recommended) |
@@ -154,6 +161,10 @@ When using `--cache`, the following keys are removed from ~/.claude.json:
 - `cachedStatsigGates`
 - `cachedDynamicConfigs`
 
+### GitHub Repository Paths (--github-repos)
+When using `--github-repos`, the following key is removed from ~/.claude.json:
+- `githubRepoPaths` - Cached GitHub repository paths
+
 ### Claude Folders (--folders)
 Clears contents of the following directories:
 - `~/.claude/file-history/` - File edit history
@@ -170,6 +181,7 @@ Performs all of the above cleaning operations at once, including:
 - Deleting all projects
 - Clearing all ~/.claude folders
 - Clearing cached data
+- Clearing GitHub repository paths
 - Clearing history.jsonl
 - Resetting usage counters (numStartups, promptQueueUseCount, tipsHistory, firstStartTime)
 
@@ -200,10 +212,11 @@ Projects:
 Options:
   [a] Clean everything
   [c] Clear cache
+  [g] Clear GitHub repository paths
   [f] Clear folders (file-history, projects, todos, shell-snapshots, statsig, debug, history.jsonl)
   [q] Quit
 
-Enter selection (number/a/c/f/q): 1
+Enter selection (number/a/c/g/f/q): 1
 
 What would you like to do with: /Users/john/Code/myapp
   [1] Clear history only
@@ -234,6 +247,7 @@ $ ./cccleaner --all
 [SUCCESS] Cleared statsig
 [SUCCESS] Cleared debug
 [SUCCESS] Cleared cached data
+[SUCCESS] Cleared githubRepoPaths
 [SUCCESS] Cleared history.jsonl
 [SUCCESS] Reset numStartups, promptQueueUseCount, tipsHistory counts to 0, and firstStartTime to now
 [SUCCESS] Deep clean completed!

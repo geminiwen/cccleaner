@@ -71,11 +71,12 @@ Claude Code Cleaner - Clean history from ~/.claude.json
 Usage: $(basename "$0") [options]
 
 Options:
-    -a, --all              Clean everything (histories + projects + folders + cache + history.jsonl + counters)
+    -a, --all              Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters)
     -p, --project PATH     Clear history for specific project path
     -l, --list             List all projects
     -i, --interactive      Interactive mode to select projects
     -c, --cache            Clear cached data (changelog, etc.)
+    -g, --github-repos     Clear GitHub repository paths
     -f, --folders          Clear ~/.claude folder contents (file-history, projects, todos, shell-snapshots, statsig, debug, session-env, history.jsonl)
     -h, --help             Show this help message
     --no-backup            Skip backup creation (not recommended)
@@ -86,6 +87,7 @@ Examples:
     $(basename "$0") --list
     $(basename "$0") --all
     $(basename "$0") --folders
+    $(basename "$0") --github-repos
     $(basename "$0") --project /Users/user/myproject
     $(basename "$0") --interactive
 
@@ -198,6 +200,22 @@ clear_cache() {
     fi
 }
 
+# Clear GitHub repo paths
+clear_github_repo_paths() {
+    local temp_file=$(mktemp)
+
+    jq 'del(.githubRepoPaths)' "$CLAUDE_JSON" > "$temp_file"
+
+    if [ $? -eq 0 ]; then
+        mv "$temp_file" "$CLAUDE_JSON"
+        print_success "Cleared githubRepoPaths"
+    else
+        rm -f "$temp_file"
+        print_error "Failed to clear githubRepoPaths"
+        exit 1
+    fi
+}
+
 # Reset counters (numStartups, promptQueueUseCount, tipsHistory counts, and firstStartTime)
 reset_counters() {
     local temp_file=$(mktemp)
@@ -292,6 +310,7 @@ clean_all() {
     clear_all_projects
     clear_claude_folders
     clear_cache
+    clear_github_repo_paths
     clear_history_jsonl
     reset_counters
 
@@ -321,10 +340,11 @@ interactive_mode() {
     echo "Options:"
     echo "  [a] Clean everything"
     echo "  [c] Clear cache"
+    echo "  [g] Clear GitHub repository paths"
     echo "  [f] Clear folders (file-history, projects, todos, shell-snapshots, statsig, debug, history.jsonl)"
     echo "  [q] Quit"
     echo
-    read -p "Enter selection (number/a/c/f/q): " selection
+    read -p "Enter selection (number/a/c/g/f/q): " selection
 
     case "$selection" in
         a|A)
@@ -339,6 +359,14 @@ interactive_mode() {
             read -p "Clear cached data? (y/N): " confirm
             if [[ "$confirm" =~ ^[Yy]$ ]]; then
                 clear_cache
+            else
+                print_info "Cancelled"
+            fi
+            ;;
+        g|G)
+            read -p "Clear GitHub repository paths? (y/N): " confirm
+            if [[ "$confirm" =~ ^[Yy]$ ]]; then
+                clear_github_repo_paths
             else
                 print_info "Cancelled"
             fi
@@ -429,6 +457,10 @@ main() {
                 action="clear_cache"
                 shift
                 ;;
+            -g|--github-repos)
+                action="clear_github_repos"
+                shift
+                ;;
             -f|--folders)
                 action="clear_folders"
                 shift
@@ -477,6 +509,9 @@ main() {
             ;;
         clear_cache)
             clear_cache
+            ;;
+        clear_github_repos)
+            clear_github_repo_paths
             ;;
         clear_folders)
             clear_claude_folders
