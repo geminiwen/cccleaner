@@ -188,7 +188,7 @@ clear_all_projects() {
 clear_cache() {
     local temp_file=$(mktemp)
 
-    jq 'del(.cachedChangelog, .cachedStatsigGates, .cachedDynamicConfigs, .hasShownOpus45Notice) | .passesEligibilityCache = {} | .s1mAccessCache = {} | .lastPlanModeUse = 0' "$CLAUDE_JSON" > "$temp_file"
+    jq 'del(.cachedChangelog, .cachedStatsigGates, .cachedDynamicConfigs, .hasShownOpus45Notice) | .passesEligibilityCache = {} | .s1mAccessCache = {} | .lastPlanModeUse = 0 | .passesUpsellSeenCount = 0' "$CLAUDE_JSON" > "$temp_file"
 
     if [ $? -eq 0 ]; then
         mv "$temp_file" "$CLAUDE_JSON"
