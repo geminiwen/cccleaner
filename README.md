@@ -11,7 +11,7 @@ A shell script to clean history and cached data from Claude Code's `~/.claude.js
 - Clear GitHub repository paths
 - Clear `~/.claude` folder contents (file-history, projects, todos, shell-snapshots, statsig, debug)
 - Clear `~/.claude/history.jsonl`
-- Reset usage counters (numStartups, promptQueueUseCount, tipsHistory, firstStartTime)
+- Reset usage counters and usage statistics (numStartups, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, skillUsage, toolUsage, firstStartTime)
 - Clean all option (everything at once)
 - Interactive mode for easy selection
 - Automatic backup creation before modifications
@@ -121,7 +121,7 @@ Or if you cloned the repository:
 
 | Option | Description |
 |--------|-------------|
-| `-a, --all` | Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters) |
+| `-a, --all` | Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + usage stats) |
 | `-p, --project PATH` | Clear history for specific project path |
 | `-l, --list` | List all projects |
 | `-i, --interactive` | Interactive mode to select projects |
@@ -183,7 +183,8 @@ Performs all of the above cleaning operations at once, including:
 - Clearing cached data
 - Clearing GitHub repository paths
 - Clearing history.jsonl
-- Resetting usage counters (numStartups, promptQueueUseCount, tipsHistory, firstStartTime)
+- Resetting usage counters (numStartups, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, firstStartTime)
+- Clearing usage statistics (`skillUsage`, `toolUsage`)
 
 ### What's NOT Touched
 The script preserves:
@@ -249,7 +250,7 @@ $ ./cccleaner --all
 [SUCCESS] Cleared cached data
 [SUCCESS] Cleared githubRepoPaths
 [SUCCESS] Cleared history.jsonl
-[SUCCESS] Reset numStartups, promptQueueUseCount, tipsHistory counts to 0, and firstStartTime to now
+[SUCCESS] Reset numStartups, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, skillUsage, toolUsage, and firstStartTime
 [SUCCESS] Deep clean completed!
 ```
 

@@ -23,7 +23,7 @@ The entire tool is a single Bash script (`cccleaner`) with no external dependenc
 
 **Operation Modes:**
 1. **Targeted cleaning** - Clear specific elements (cache, folders, individual projects)
-2. **Complete cleaning** (`--all`) - Runs all cleaning operations: histories + projects + folders + cache + history.jsonl
+2. **Complete cleaning** (`--all`) - Runs all cleaning operations: histories + projects + folders + cache + history.jsonl + usage stats
 3. **Interactive mode** - Menu-driven interface for selective cleaning
 
 ### Key Functions
@@ -35,6 +35,7 @@ The entire tool is a single Bash script (`cccleaner`) with no external dependenc
 - `clear_history_jsonl()` - Truncates the history.jsonl file (doesn't delete, just empties)
 - `clear_cache()` - Removes cached keys from .claude.json (cachedChangelog, cachedStatsigGates, cachedDynamicConfigs)
 - `clear_github_repo_paths()` - Removes githubRepoPaths from .claude.json
+- `reset_counters()` - Resets counters, firstStartTime, opus1mMergeNoticeSeenCount, and clears skillUsage/toolUsage
 - `clean_all()` - Orchestrates all cleaning functions
 
 **JSON Manipulation Pattern:**
@@ -92,5 +93,5 @@ fi
 - The script uses `set -euo pipefail` for strict error handling
 - All modifications are atomic (via temp files)
 - The `--folders` option includes history.jsonl cleanup
-- The `--all` option is equivalent to running all individual cleaning operations (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters)
+- The `--all` option is equivalent to running all individual cleaning operations (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + usage stats)
 - Project paths in interactive mode come from `jq -r '.projects | keys[]'`
