@@ -8,6 +8,9 @@ set -euo pipefail
 CLAUDE_JSON="$HOME/.claude.json"
 CLAUDE_DIR="$HOME/.claude"
 BACKUP_DIR="$HOME/.claude_backups"
+TZ_LAUNCH_AGENT_LABEL="com.cccleaner.env-tz"
+TZ_LAUNCH_AGENT_PATH="$HOME/Library/LaunchAgents/${TZ_LAUNCH_AGENT_LABEL}.plist"
+US_TIMEZONE="America/Los_Angeles"
 
 # Colors for output
 RED='\033[0;31m'
@@ -61,6 +64,8 @@ create_backup() {
         cp -r "$CLAUDE_DIR" "$backup_dir"
         print_success "Backup created: $backup_dir"
     fi
+
+    backup_timezone_files "$timestamp"
 }
 
 # Show usage
@@ -71,7 +76,7 @@ Claude Code Cleaner - Clean history from ~/.claude.json
 Usage: $(basename "$0") [options]
 
 Options:
-    -a, --all              Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + usage stats + identity IDs)
+    -a, --all              Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + usage stats + identity IDs + US timezone)
     -p, --project PATH     Clear history for specific project path
     -l, --list             List all projects
     -i, --interactive      Interactive mode to select projects
@@ -82,7 +87,7 @@ Options:
     -h, --help             Show this help message
     --no-backup            Skip backup creation (not recommended)
 
-Note: --all also resets numStartups, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, skillUsage, toolUsage, and regenerates userID plus anonymousId
+Note: --all also resets numStartups, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, skillUsage, toolUsage, regenerates userID plus anonymousId, and sets TZ=America/Los_Angeles
 
 Examples:
     $(basename "$0") --list
@@ -94,6 +99,43 @@ Examples:
     $(basename "$0") --interactive
 
 EOF
+}
+
+# Back up shell files and LaunchAgent if they contain cccleaner's US timezone override
+backup_timezone_files() {
+    local timestamp="$1"
+    local backup_dir=""
+    local file
+    local shell_files=(
+        "$HOME/.zshenv"
+        "$HOME/.zprofile"
+        "$HOME/.bash_profile"
+        "$HOME/.bashrc"
+        "$HOME/.profile"
+        "$HOME/.zshrc"
+    )
+
+    for file in "${shell_files[@]}"; do
+        if [ -f "$file" ]; then
+            if grep -Eq '^[[:space:]]*export[[:space:]]+TZ="America/Los_Angeles"[[:space:]]*$' "$file"; then
+                if [ -z "$backup_dir" ]; then
+                    backup_dir="$BACKUP_DIR/timezone_override_$timestamp"
+                    mkdir -p "$backup_dir"
+                fi
+                cp "$file" "$backup_dir/$(basename "$file")"
+                print_success "Backup created: $backup_dir/$(basename "$file")"
+            fi
+        fi
+    done
+
+    if [ -f "$TZ_LAUNCH_AGENT_PATH" ]; then
+        if [ -z "$backup_dir" ]; then
+            backup_dir="$BACKUP_DIR/timezone_override_$timestamp"
+            mkdir -p "$backup_dir"
+        fi
+        cp "$TZ_LAUNCH_AGENT_PATH" "$backup_dir/$(basename "$TZ_LAUNCH_AGENT_PATH")"
+        print_success "Backup created: $backup_dir/$(basename "$TZ_LAUNCH_AGENT_PATH")"
+    fi
 }
 
 # List all projects
@@ -218,6 +260,143 @@ clear_github_repo_paths() {
     fi
 }
 
+# Write file only when content changed
+write_if_changed() {
+    local candidate="$1"
+    local target="$2"
+
+    if [ -f "$target" ] && cmp -s "$candidate" "$target"; then
+        rm -f "$candidate"
+        return 1
+    fi
+
+    mv "$candidate" "$target"
+    return 0
+}
+
+# Add export TZ at the top of a shell file
+ensure_tz_export_at_top() {
+    local file="$1"
+    local timezone="$2"
+    local filtered
+    local candidate
+
+    mkdir -p "$(dirname "$file")"
+    [ -f "$file" ] || : > "$file"
+
+    filtered=$(mktemp)
+    candidate=$(mktemp)
+
+    awk '
+        /^[[:space:]]*export[[:space:]]+TZ=/ { next }
+        !started && /^[[:space:]]*$/ { next }
+        {
+            started = 1
+            print
+        }
+    ' "$file" > "$filtered"
+
+    {
+        printf 'export TZ="%s"\n' "$timezone"
+        printf '\n'
+        cat "$filtered"
+    } > "$candidate"
+
+    rm -f "$filtered"
+    write_if_changed "$candidate" "$file"
+}
+
+# Add export TZ at the end of a shell file as a tail guard
+ensure_tz_export_at_end() {
+    local file="$1"
+    local timezone="$2"
+    local filtered
+    local candidate
+
+    mkdir -p "$(dirname "$file")"
+    [ -f "$file" ] || : > "$file"
+
+    filtered=$(mktemp)
+    candidate=$(mktemp)
+
+    awk '
+        /^[[:space:]]*export[[:space:]]+TZ=/ { next }
+        { lines[++n] = $0 }
+        END {
+            while (n > 0 && lines[n] ~ /^[[:space:]]*$/) {
+                n--
+            }
+            for (i = 1; i <= n; i++) {
+                print lines[i]
+            }
+        }
+    ' "$file" > "$filtered"
+
+    {
+        if [ -s "$filtered" ]; then
+            cat "$filtered"
+            printf '\n\n'
+        fi
+        printf 'export TZ="%s"\n' "$timezone"
+    } > "$candidate"
+
+    rm -f "$filtered"
+    write_if_changed "$candidate" "$file"
+}
+
+# Write macOS LaunchAgent used for session TZ override
+write_timezone_launch_agent() {
+    local timezone="$1"
+
+    if [ "$(uname -s)" != "Darwin" ]; then
+        return 0
+    fi
+
+    mkdir -p "$(dirname "$TZ_LAUNCH_AGENT_PATH")"
+
+    cat > "$TZ_LAUNCH_AGENT_PATH" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>${TZ_LAUNCH_AGENT_LABEL}</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>launchctl</string>
+    <string>setenv</string>
+    <string>TZ</string>
+    <string>${timezone}</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+</dict>
+</plist>
+EOF
+}
+
+# Refresh the current macOS login session TZ override
+refresh_launchctl_timezone() {
+    local timezone="$1"
+    local gui_domain
+
+    if [ "$(uname -s)" != "Darwin" ]; then
+        return 0
+    fi
+
+    if ! command -v launchctl > /dev/null 2>&1; then
+        print_warning "launchctl not found, skipped macOS session timezone sync"
+        return 0
+    fi
+
+    launchctl setenv TZ "$timezone" > /dev/null 2>&1 || print_warning "Failed to update launchctl TZ"
+
+    gui_domain="gui/$(id -u)"
+    launchctl bootout "$gui_domain" "$TZ_LAUNCH_AGENT_PATH" > /dev/null 2>&1 || true
+    launchctl bootstrap "$gui_domain" "$TZ_LAUNCH_AGENT_PATH" > /dev/null 2>&1 || print_warning "Failed to bootstrap LaunchAgent ${TZ_LAUNCH_AGENT_LABEL}"
+    launchctl kickstart -k "${gui_domain}/${TZ_LAUNCH_AGENT_LABEL}" > /dev/null 2>&1 || print_warning "Failed to kickstart LaunchAgent ${TZ_LAUNCH_AGENT_LABEL}"
+}
+
 # Generate a new 64-character lowercase hex userID
 generate_user_id() {
     if command -v openssl > /dev/null 2>&1; then
@@ -293,6 +472,34 @@ regenerate_identity_ids() {
         rm -f "$temp_file"
         print_error "Failed to regenerate identity IDs"
         exit 1
+    fi
+}
+
+# Set the cccleaner US timezone override in shell files and macOS session
+set_us_timezone_override() {
+    local file
+    local shell_files=(
+        "$HOME/.zshenv"
+        "$HOME/.zprofile"
+        "$HOME/.bash_profile"
+        "$HOME/.bashrc"
+        "$HOME/.profile"
+    )
+
+    for file in "${shell_files[@]}"; do
+        if ensure_tz_export_at_top "$file" "$US_TIMEZONE"; then
+            print_success "Set US timezone override in $(basename "$file")"
+        fi
+    done
+
+    if ensure_tz_export_at_end "$HOME/.zshrc" "$US_TIMEZONE"; then
+        print_success "Set US timezone override in .zshrc"
+    fi
+
+    if [ "$(uname -s)" = "Darwin" ]; then
+        write_timezone_launch_agent "$US_TIMEZONE"
+        refresh_launchctl_timezone "$US_TIMEZONE"
+        print_success "Applied macOS session timezone override"
     fi
 }
 
@@ -377,6 +584,7 @@ clean_all() {
     clear_history_jsonl
     reset_counters
     regenerate_identity_ids
+    set_us_timezone_override
 
     print_success "Deep clean completed!"
 }

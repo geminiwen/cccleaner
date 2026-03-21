@@ -13,6 +13,7 @@ A shell script to clean history and cached data from Claude Code's `~/.claude.js
 - Clear `~/.claude` folder contents (file-history, projects, todos, shell-snapshots, statsig, debug)
 - Clear `~/.claude/history.jsonl`
 - Reset usage counters and usage statistics (numStartups, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, skillUsage, toolUsage, firstStartTime)
+- Set `TZ=America/Los_Angeles` when using `--all`
 - Clean all option (everything at once)
 - Interactive mode for easy selection
 - Automatic backup creation before modifications
@@ -32,6 +33,13 @@ Install with a single command:
 
 ```bash
 curl -s https://raw.githubusercontent.com/geminiwen/cccleaner/master/install.sh | bash
+```
+
+Optional install-script helpers:
+
+```bash
+curl -s https://raw.githubusercontent.com/geminiwen/cccleaner/master/install.sh | bash -s -- --set-us-timezone
+curl -s https://raw.githubusercontent.com/geminiwen/cccleaner/master/install.sh | bash -s -- --unset-timezone
 ```
 
 This will:
@@ -75,6 +83,15 @@ Or if you cloned the repository:
 ```bash
 ./uninstall.sh
 ```
+
+## Timezone Helpers
+
+The install script also supports two helper modes for shell/session timezone overrides:
+
+- `bash install.sh --set-us-timezone` sets `TZ=America/Los_Angeles` in common shell startup files and refreshes the current macOS login session with a LaunchAgent.
+- `bash install.sh --unset-timezone` removes those `TZ` overrides and unloads the LaunchAgent.
+
+These helpers do not install or uninstall `cccleaner`; they only manage `TZ`.
 
 ## Usage
 
@@ -127,7 +144,7 @@ Or if you cloned the repository:
 
 | Option | Description |
 |--------|-------------|
-| `-a, --all` | Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + usage stats + userID + anonymousId) |
+| `-a, --all` | Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + usage stats + userID + anonymousId + US timezone) |
 | `-p, --project PATH` | Clear history for specific project path |
 | `-l, --list` | List all projects |
 | `-i, --interactive` | Interactive mode to select projects |
@@ -145,6 +162,7 @@ By default, the script creates a backup before any modifications:
 - Backup filename format:
   - `claude_claude.json_YYYYMMDD_HHMMSS` for ~/.claude.json
   - `claude_dir_YYYYMMDD_HHMMSS` for ~/.claude directory
+  - `timezone_override_YYYYMMDD_HHMMSS/` for shell files or LaunchAgent affected by the US timezone override
 
 To restore from backup:
 ```bash
@@ -199,6 +217,8 @@ Performs all of the above cleaning operations at once, including:
 - Clearing usage statistics (`skillUsage`, `toolUsage`)
 - Regenerating `userID`
 - Regenerating `anonymousId`
+- Setting `TZ=America/Los_Angeles` in shell startup files
+- Refreshing the macOS login session timezone override via LaunchAgent
 
 ### What's NOT Touched
 The script preserves:

@@ -9,7 +9,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Architecture
 
 ### Single Script Design
-The entire tool is a single Bash script (`cccleaner`) with no external dependencies except `jq` for JSON manipulation.
+The main cleaner is a single Bash script (`cccleaner`) with no external dependencies except `jq` for JSON manipulation.
+The repository also includes `install.sh`, which installs the script and provides optional timezone helper commands.
 
 ### Core Components
 
@@ -23,7 +24,7 @@ The entire tool is a single Bash script (`cccleaner`) with no external dependenc
 
 **Operation Modes:**
 1. **Targeted cleaning** - Clear specific elements (cache, folders, individual projects)
-2. **Complete cleaning** (`--all`) - Runs all cleaning operations: histories + projects + folders + cache + history.jsonl + usage stats + identity ID regeneration
+2. **Complete cleaning** (`--all`) - Runs all cleaning operations: histories + projects + folders + cache + history.jsonl + usage stats + identity ID regeneration + US timezone setup
 3. **Interactive mode** - Menu-driven interface for selective cleaning
 
 ### Key Functions
@@ -37,6 +38,7 @@ The entire tool is a single Bash script (`cccleaner`) with no external dependenc
 - `clear_github_repo_paths()` - Removes githubRepoPaths from .claude.json
 - `reset_counters()` - Resets counters, firstStartTime, opus1mMergeNoticeSeenCount, and clears skillUsage/toolUsage
 - `regenerate_identity_ids()` - Replaces userID and anonymousId with newly generated values matching Claude Code's current formats
+- `set_us_timezone_override()` - Pins `TZ=America/Los_Angeles` in common shell startup files and the macOS login session
 - `clean_all()` - Orchestrates all cleaning functions
 
 **JSON Manipulation Pattern:**
@@ -95,5 +97,7 @@ fi
 - The script uses `set -euo pipefail` for strict error handling
 - All modifications are atomic (via temp files)
 - The `--folders` option includes history.jsonl cleanup
-- The `--all` option is equivalent to running all individual cleaning operations (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + usage stats + userID + anonymousId)
+- The `--all` option is equivalent to running all individual cleaning operations (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + usage stats + userID + anonymousId + US timezone setup)
 - Project paths in interactive mode come from `jq -r '.projects | keys[]'`
+- `install.sh --set-us-timezone` pins `TZ=America/Los_Angeles` in shell startup files and the macOS login session
+- `install.sh --unset-timezone` removes those `TZ` overrides instead of resetting to a hard-coded default timezone
