@@ -20,13 +20,15 @@ _cccleaner() {
   options=(
     '(- *)'{-h,--help}'[Show help message and exit]'
     '(- *)'{-l,--list}'[List all projects and exit]'
-    '(-p --project -i --interactive -c --cache -g --github-repos -f --folders -u --user-id)'{-a,--all}'[Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + userID + anonymousId)]'
-    '(-a --all -i --interactive -c --cache -g --github-repos -f --folders -u --user-id)'{-p,--project}'[Clear history for specific project]:project path:->projects'
-    '(-a --all -p --project -c --cache -g --github-repos -f --folders -u --user-id)'{-i,--interactive}'[Interactive mode to select projects]'
-    '(-a --all -p --project -i --interactive -g --github-repos -f --folders -u --user-id)'{-c,--cache}'[Clear cached data (changelog, etc.)]'
-    '(-a --all -p --project -i --interactive -c --cache -f --folders -u --user-id)'{-g,--github-repos}'[Clear GitHub repository paths]'
-    '(-a --all -p --project -i --interactive -c --cache -g --github-repos -u --user-id)'{-f,--folders}'[Clear ~/.claude folder contents]'
-    '(-a --all -p --project -i --interactive -c --cache -g --github-repos -f --folders)'{-u,--user-id}'[Regenerate userID and anonymousId in ~/.claude.json]'
+    '(-p --project -i --interactive -c --cache -g --github-repos -f --folders -u --user-id --set-us-timezone --unset-timezone)'{-a,--all}'[Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + userID + anonymousId)]'
+    '(-a --all -i --interactive -c --cache -g --github-repos -f --folders -u --user-id --set-us-timezone --unset-timezone)'{-p,--project}'[Clear history for specific project]:project path:->projects'
+    '(-a --all -p --project -c --cache -g --github-repos -f --folders -u --user-id --set-us-timezone --unset-timezone)'{-i,--interactive}'[Interactive mode to select projects]'
+    '(-a --all -p --project -i --interactive -g --github-repos -f --folders -u --user-id --set-us-timezone --unset-timezone)'{-c,--cache}'[Clear cached data (changelog, etc.)]'
+    '(-a --all -p --project -i --interactive -c --cache -f --folders -u --user-id --set-us-timezone --unset-timezone)'{-g,--github-repos}'[Clear GitHub repository paths]'
+    '(-a --all -p --project -i --interactive -c --cache -g --github-repos -u --user-id --set-us-timezone --unset-timezone)'{-f,--folders}'[Clear ~/.claude folder contents]'
+    '(-a --all -p --project -i --interactive -c --cache -g --github-repos -f --folders --set-us-timezone --unset-timezone)'{-u,--user-id}'[Regenerate userID and anonymousId in ~/.claude.json]'
+    '(-a --all -p --project -i --interactive -c --cache -g --github-repos -f --folders -u --user-id --unset-timezone)'--set-us-timezone'[Set TZ=America/Los_Angeles in shell files and macOS LaunchAgent]'
+    '(-a --all -p --project -i --interactive -c --cache -g --github-repos -f --folders -u --user-id --set-us-timezone)'--unset-timezone'[Remove TZ overrides from shell files and macOS LaunchAgent]'
     '--no-backup[Skip backup creation (not recommended)]'
   )
 

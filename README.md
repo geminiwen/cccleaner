@@ -13,7 +13,7 @@ A shell script to clean history and cached data from Claude Code's `~/.claude.js
 - Clear `~/.claude` folder contents (file-history, projects, todos, shell-snapshots, statsig, debug)
 - Clear `~/.claude/history.jsonl`
 - Reset usage counters and usage statistics (numStartups, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, skillUsage, toolUsage, firstStartTime)
-- Set `TZ=America/Los_Angeles` when using `--all`
+- Set or remove `TZ=America/Los_Angeles` with dedicated commands
 - Clean all option (everything at once)
 - Interactive mode for easy selection
 - Automatic backup creation before modifications
@@ -86,7 +86,10 @@ Or if you cloned the repository:
 
 ## Timezone Helpers
 
-The install script also supports two helper modes for shell/session timezone overrides:
+Timezone management is available directly in `cccleaner`, and the install script also supports helper modes for shell/session timezone overrides:
+
+- `./cccleaner --set-us-timezone` sets `TZ=America/Los_Angeles` in common shell startup files and refreshes the current macOS login session with a LaunchAgent.
+- `./cccleaner --unset-timezone` removes those `TZ` overrides and unloads the LaunchAgent.
 
 - `bash install.sh --set-us-timezone` sets `TZ=America/Los_Angeles` in common shell startup files and refreshes the current macOS login session with a LaunchAgent.
 - `bash install.sh --unset-timezone` removes those `TZ` overrides and unloads the LaunchAgent.
@@ -135,6 +138,16 @@ These helpers do not install or uninstall `cccleaner`; they only manage `TZ`.
 ./cccleaner --user-id
 ```
 
+### Set US timezone override
+```bash
+./cccleaner --set-us-timezone
+```
+
+### Remove timezone override
+```bash
+./cccleaner --unset-timezone
+```
+
 ### Skip backup creation (not recommended)
 ```bash
 ./cccleaner --all --no-backup
@@ -144,7 +157,7 @@ These helpers do not install or uninstall `cccleaner`; they only manage `TZ`.
 
 | Option | Description |
 |--------|-------------|
-| `-a, --all` | Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + usage stats + userID + anonymousId + US timezone) |
+| `-a, --all` | Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + usage stats + userID + anonymousId) |
 | `-p, --project PATH` | Clear history for specific project path |
 | `-l, --list` | List all projects |
 | `-i, --interactive` | Interactive mode to select projects |
@@ -152,6 +165,8 @@ These helpers do not install or uninstall `cccleaner`; they only manage `TZ`.
 | `-g, --github-repos` | Clear GitHub repository paths |
 | `-f, --folders` | Clear ~/.claude folder contents (file-history, projects, todos, shell-snapshots, statsig, debug, history.jsonl) |
 | `-u, --user-id` | Regenerate identity IDs in ~/.claude.json (`userID` and `anonymousId`) |
+| `--set-us-timezone` | Set `TZ=America/Los_Angeles` in shell startup files and macOS LaunchAgent |
+| `--unset-timezone` | Remove `TZ` overrides from shell startup files and macOS LaunchAgent |
 | `-h, --help` | Show help message |
 | `--no-backup` | Skip backup creation (not recommended) |
 
@@ -162,7 +177,7 @@ By default, the script creates a backup before any modifications:
 - Backup filename format:
   - `claude_claude.json_YYYYMMDD_HHMMSS` for ~/.claude.json
   - `claude_dir_YYYYMMDD_HHMMSS` for ~/.claude directory
-  - `timezone_override_YYYYMMDD_HHMMSS/` for shell files or LaunchAgent affected by the US timezone override
+  - `timezone_override_YYYYMMDD_HHMMSS/` for shell files or LaunchAgent affected by timezone commands
 
 To restore from backup:
 ```bash
@@ -217,8 +232,14 @@ Performs all of the above cleaning operations at once, including:
 - Clearing usage statistics (`skillUsage`, `toolUsage`)
 - Regenerating `userID`
 - Regenerating `anonymousId`
-- Setting `TZ=America/Los_Angeles` in shell startup files
-- Refreshing the macOS login session timezone override via LaunchAgent
+
+### Timezone Commands
+Dedicated timezone commands are available separately from `--all`:
+
+- `./cccleaner --set-us-timezone`
+  Sets `TZ=America/Los_Angeles` in common shell startup files and refreshes the current macOS login session with a LaunchAgent.
+- `./cccleaner --unset-timezone`
+  Removes those `TZ` overrides and unloads the LaunchAgent.
 
 ### What's NOT Touched
 The script preserves:

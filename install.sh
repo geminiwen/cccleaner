@@ -459,8 +459,10 @@ main() {
     echo "  cccleaner --help"
     echo "  cccleaner --list"
     echo "  cccleaner --all"
+    echo "  cccleaner --set-us-timezone"
+    echo "  cccleaner --unset-timezone"
     echo
-    echo "Timezone helpers:"
+    echo "Install-script timezone helpers:"
     echo "  bash install.sh --set-us-timezone"
     echo "  bash install.sh --unset-timezone"
     echo

@@ -47,7 +47,7 @@ check_dependencies() {
 }
 
 # Create backup of .claude.json and .claude directory
-create_backup() {
+create_claude_backup() {
     mkdir -p "$BACKUP_DIR"
     local timestamp=$(date +%Y%m%d_%H%M%S)
 
@@ -65,6 +65,13 @@ create_backup() {
         print_success "Backup created: $backup_dir"
     fi
 
+}
+
+# Create backup of shell TZ overrides and LaunchAgent
+create_timezone_backup() {
+    mkdir -p "$BACKUP_DIR"
+    local timestamp=$(date +%Y%m%d_%H%M%S)
+
     backup_timezone_files "$timestamp"
 }
 
@@ -76,7 +83,7 @@ Claude Code Cleaner - Clean history from ~/.claude.json
 Usage: $(basename "$0") [options]
 
 Options:
-    -a, --all              Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + usage stats + identity IDs + US timezone)
+    -a, --all              Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + usage stats + identity IDs)
     -p, --project PATH     Clear history for specific project path
     -l, --list             List all projects
     -i, --interactive      Interactive mode to select projects
@@ -84,10 +91,12 @@ Options:
     -g, --github-repos     Clear GitHub repository paths
     -f, --folders          Clear ~/.claude folder contents (file-history, projects, todos, shell-snapshots, statsig, debug, session-env, history.jsonl)
     -u, --user-id          Regenerate identity IDs in ~/.claude.json (userID + anonymousId)
+    --set-us-timezone      Set TZ=America/Los_Angeles in shell files and macOS LaunchAgent
+    --unset-timezone       Remove TZ overrides from shell files and macOS LaunchAgent
     -h, --help             Show this help message
     --no-backup            Skip backup creation (not recommended)
 
-Note: --all also resets numStartups, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, skillUsage, toolUsage, regenerates userID plus anonymousId, and sets TZ=America/Los_Angeles
+Note: --all also resets numStartups, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, skillUsage, toolUsage, and regenerates userID plus anonymousId
 
 Examples:
     $(basename "$0") --list
@@ -95,6 +104,8 @@ Examples:
     $(basename "$0") --folders
     $(basename "$0") --github-repos
     $(basename "$0") --user-id
+    $(basename "$0") --set-us-timezone
+    $(basename "$0") --unset-timezone
     $(basename "$0") --project /Users/user/myproject
     $(basename "$0") --interactive
 
@@ -274,6 +285,36 @@ write_if_changed() {
     return 0
 }
 
+# Remove export TZ lines from a shell file
+remove_tz_exports() {
+    local file="$1"
+    local candidate
+
+    if [ ! -f "$file" ]; then
+        return 1
+    fi
+
+    candidate=$(mktemp)
+
+    awk '
+        /^[[:space:]]*export[[:space:]]+TZ=/ { next }
+        { lines[++n] = $0 }
+        END {
+            while (n > 0 && lines[n] ~ /^[[:space:]]*$/) {
+                n--
+            }
+            for (i = 1; i <= n; i++) {
+                print lines[i]
+            }
+            if (n > 0) {
+                printf "\n"
+            }
+        }
+    ' "$file" > "$candidate"
+
+    write_if_changed "$candidate" "$file"
+}
+
 # Add export TZ at the top of a shell file
 ensure_tz_export_at_top() {
     local file="$1"
@@ -397,6 +438,29 @@ refresh_launchctl_timezone() {
     launchctl kickstart -k "${gui_domain}/${TZ_LAUNCH_AGENT_LABEL}" > /dev/null 2>&1 || print_warning "Failed to kickstart LaunchAgent ${TZ_LAUNCH_AGENT_LABEL}"
 }
 
+# Remove the macOS LaunchAgent used for session TZ override
+remove_timezone_launch_agent() {
+    local gui_domain
+
+    if [ "$(uname -s)" != "Darwin" ]; then
+        return 0
+    fi
+
+    if ! command -v launchctl > /dev/null 2>&1; then
+        print_warning "launchctl not found, skipped macOS session timezone cleanup"
+        return 0
+    fi
+
+    gui_domain="gui/$(id -u)"
+    launchctl bootout "$gui_domain" "$TZ_LAUNCH_AGENT_PATH" > /dev/null 2>&1 || true
+
+    if [ -f "$TZ_LAUNCH_AGENT_PATH" ]; then
+        rm -f "$TZ_LAUNCH_AGENT_PATH"
+    fi
+
+    launchctl unsetenv TZ > /dev/null 2>&1 || print_warning "Failed to unset launchctl TZ"
+}
+
 # Generate a new 64-character lowercase hex userID
 generate_user_id() {
     if command -v openssl > /dev/null 2>&1; then
@@ -503,6 +567,30 @@ set_us_timezone_override() {
     fi
 }
 
+# Remove the cccleaner timezone override from shell files and macOS session
+unset_timezone_override() {
+    local file
+    local shell_files=(
+        "$HOME/.zshenv"
+        "$HOME/.zprofile"
+        "$HOME/.bash_profile"
+        "$HOME/.bashrc"
+        "$HOME/.profile"
+        "$HOME/.zshrc"
+    )
+
+    for file in "${shell_files[@]}"; do
+        if remove_tz_exports "$file"; then
+            print_success "Removed timezone override from $(basename "$file")"
+        fi
+    done
+
+    if [ "$(uname -s)" = "Darwin" ]; then
+        remove_timezone_launch_agent
+        print_success "Removed macOS session timezone override"
+    fi
+}
+
 # Clear ~/.claude folder contents
 clear_claude_folders() {
     local cleaned=0
@@ -584,8 +672,6 @@ clean_all() {
     clear_history_jsonl
     reset_counters
     regenerate_identity_ids
-    set_us_timezone_override
-
     print_success "Deep clean completed!"
 }
 
@@ -750,6 +836,14 @@ main() {
                 action="regenerate_identity_ids"
                 shift
                 ;;
+            --set-us-timezone)
+                action="set_timezone"
+                shift
+                ;;
+            --unset-timezone)
+                action="unset_timezone"
+                shift
+                ;;
             --no-backup)
                 create_backup_flag=false
                 shift
@@ -762,8 +856,14 @@ main() {
         esac
     done
 
-    # Check dependencies
-    check_dependencies
+    # Check dependencies only for actions that touch ~/.claude.json
+    case "$action" in
+        set_timezone|unset_timezone)
+            ;;
+        *)
+            check_dependencies
+            ;;
+    esac
 
     # If no action specified, show usage
     if [ -z "$action" ]; then
@@ -773,7 +873,14 @@ main() {
 
     # Create backup unless disabled
     if [ "$create_backup_flag" = true ]; then
-        create_backup
+        case "$action" in
+            set_timezone|unset_timezone)
+                create_timezone_backup
+                ;;
+            *)
+                create_claude_backup
+                ;;
+        esac
         echo
     fi
 
@@ -804,6 +911,12 @@ main() {
             ;;
         regenerate_identity_ids)
             regenerate_identity_ids
+            ;;
+        set_timezone)
+            set_us_timezone_override
+            ;;
+        unset_timezone)
+            unset_timezone_override
             ;;
         *)
             print_error "Unknown action: $action"
