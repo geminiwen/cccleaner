@@ -20,12 +20,13 @@ _cccleaner() {
   options=(
     '(- *)'{-h,--help}'[Show help message and exit]'
     '(- *)'{-l,--list}'[List all projects and exit]'
-    '(-p --project -i --interactive -c --cache -g --github-repos -f --folders)'{-a,--all}'[Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters)]'
-    '(-a --all -i --interactive -c --cache -g --github-repos -f --folders)'{-p,--project}'[Clear history for specific project]:project path:->projects'
-    '(-a --all -p --project -c --cache -g --github-repos -f --folders)'{-i,--interactive}'[Interactive mode to select projects]'
-    '(-a --all -p --project -i --interactive -g --github-repos -f --folders)'{-c,--cache}'[Clear cached data (changelog, etc.)]'
-    '(-a --all -p --project -i --interactive -c --cache -f --folders)'{-g,--github-repos}'[Clear GitHub repository paths]'
-    '(-a --all -p --project -i --interactive -c --cache -g --github-repos)'{-f,--folders}'[Clear ~/.claude folder contents]'
+    '(-p --project -i --interactive -c --cache -g --github-repos -f --folders -u --user-id)'{-a,--all}'[Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + userID + anonymousId)]'
+    '(-a --all -i --interactive -c --cache -g --github-repos -f --folders -u --user-id)'{-p,--project}'[Clear history for specific project]:project path:->projects'
+    '(-a --all -p --project -c --cache -g --github-repos -f --folders -u --user-id)'{-i,--interactive}'[Interactive mode to select projects]'
+    '(-a --all -p --project -i --interactive -g --github-repos -f --folders -u --user-id)'{-c,--cache}'[Clear cached data (changelog, etc.)]'
+    '(-a --all -p --project -i --interactive -c --cache -f --folders -u --user-id)'{-g,--github-repos}'[Clear GitHub repository paths]'
+    '(-a --all -p --project -i --interactive -c --cache -g --github-repos -u --user-id)'{-f,--folders}'[Clear ~/.claude folder contents]'
+    '(-a --all -p --project -i --interactive -c --cache -g --github-repos -f --folders)'{-u,--user-id}'[Regenerate userID and anonymousId in ~/.claude.json]'
     '--no-backup[Skip backup creation (not recommended)]'
   )
 

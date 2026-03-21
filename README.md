@@ -9,6 +9,7 @@ A shell script to clean history and cached data from Claude Code's `~/.claude.js
 - Delete entire projects
 - Clear cached data (changelog, gates, configs)
 - Clear GitHub repository paths
+- Regenerate identity IDs in `~/.claude.json` (`userID` and `anonymousId`)
 - Clear `~/.claude` folder contents (file-history, projects, todos, shell-snapshots, statsig, debug)
 - Clear `~/.claude/history.jsonl`
 - Reset usage counters and usage statistics (numStartups, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, skillUsage, toolUsage, firstStartTime)
@@ -112,6 +113,11 @@ Or if you cloned the repository:
 ./cccleaner --folders
 ```
 
+### Regenerate identity IDs
+```bash
+./cccleaner --user-id
+```
+
 ### Skip backup creation (not recommended)
 ```bash
 ./cccleaner --all --no-backup
@@ -121,13 +127,14 @@ Or if you cloned the repository:
 
 | Option | Description |
 |--------|-------------|
-| `-a, --all` | Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + usage stats) |
+| `-a, --all` | Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + usage stats + userID + anonymousId) |
 | `-p, --project PATH` | Clear history for specific project path |
 | `-l, --list` | List all projects |
 | `-i, --interactive` | Interactive mode to select projects |
 | `-c, --cache` | Clear cached data (changelog, etc.) |
 | `-g, --github-repos` | Clear GitHub repository paths |
 | `-f, --folders` | Clear ~/.claude folder contents (file-history, projects, todos, shell-snapshots, statsig, debug, history.jsonl) |
+| `-u, --user-id` | Regenerate identity IDs in ~/.claude.json (`userID` and `anonymousId`) |
 | `-h, --help` | Show help message |
 | `--no-backup` | Skip backup creation (not recommended) |
 
@@ -165,6 +172,11 @@ When using `--cache`, the following keys are removed from ~/.claude.json:
 When using `--github-repos`, the following key is removed from ~/.claude.json:
 - `githubRepoPaths` - Cached GitHub repository paths
 
+### Identity IDs (--user-id)
+When using `--user-id`, the script regenerates Claude Code identity identifiers:
+- `userID` - Replaced with a newly generated 64-character lowercase hexadecimal string
+- `anonymousId` - Replaced with a newly generated `claudecode.v1.<uuid>` identifier
+
 ### Claude Folders (--folders)
 Clears contents of the following directories:
 - `~/.claude/file-history/` - File edit history
@@ -185,11 +197,13 @@ Performs all of the above cleaning operations at once, including:
 - Clearing history.jsonl
 - Resetting usage counters (numStartups, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, firstStartTime)
 - Clearing usage statistics (`skillUsage`, `toolUsage`)
+- Regenerating `userID`
+- Regenerating `anonymousId`
 
 ### What's NOT Touched
 The script preserves:
 - Global settings (installMethod, autoUpdates, etc.)
-- User ID and authentication data
+- Authentication data
 - Project settings (allowedTools, mcpServers, etc.) - when using --folders only
 - Feature flags (except cached ones)
 - `~/.claude/commands/` - Custom slash commands
@@ -251,6 +265,7 @@ $ ./cccleaner --all
 [SUCCESS] Cleared githubRepoPaths
 [SUCCESS] Cleared history.jsonl
 [SUCCESS] Reset numStartups, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, skillUsage, toolUsage, and firstStartTime
+[SUCCESS] Regenerated userID and anonymousId
 [SUCCESS] Deep clean completed!
 ```
 

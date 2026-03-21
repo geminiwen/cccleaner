@@ -71,23 +71,25 @@ Claude Code Cleaner - Clean history from ~/.claude.json
 Usage: $(basename "$0") [options]
 
 Options:
-    -a, --all              Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + usage stats)
+    -a, --all              Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + usage stats + identity IDs)
     -p, --project PATH     Clear history for specific project path
     -l, --list             List all projects
     -i, --interactive      Interactive mode to select projects
     -c, --cache            Clear cached data (changelog, etc.)
     -g, --github-repos     Clear GitHub repository paths
     -f, --folders          Clear ~/.claude folder contents (file-history, projects, todos, shell-snapshots, statsig, debug, session-env, history.jsonl)
+    -u, --user-id          Regenerate identity IDs in ~/.claude.json (userID + anonymousId)
     -h, --help             Show this help message
     --no-backup            Skip backup creation (not recommended)
 
-Note: --all also resets numStartups, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, skillUsage, and toolUsage
+Note: --all also resets numStartups, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, skillUsage, toolUsage, and regenerates userID plus anonymousId
 
 Examples:
     $(basename "$0") --list
     $(basename "$0") --all
     $(basename "$0") --folders
     $(basename "$0") --github-repos
+    $(basename "$0") --user-id
     $(basename "$0") --project /Users/user/myproject
     $(basename "$0") --interactive
 
@@ -216,6 +218,36 @@ clear_github_repo_paths() {
     fi
 }
 
+# Generate a new 64-character lowercase hex userID
+generate_user_id() {
+    if command -v openssl > /dev/null 2>&1; then
+        openssl rand -hex 32
+    elif [ -r /dev/urandom ]; then
+        od -An -N32 -tx1 /dev/urandom | tr -d ' \n'
+    else
+        print_error "Failed to generate a new userID"
+        exit 1
+    fi
+}
+
+# Generate a new anonymousId matching Claude Code's current format
+generate_anonymous_id() {
+    local uuid=""
+    local hex=""
+
+    if command -v uuidgen > /dev/null 2>&1; then
+        uuid=$(uuidgen | tr '[:upper:]' '[:lower:]')
+    elif command -v openssl > /dev/null 2>&1; then
+        hex=$(openssl rand -hex 16)
+        uuid="${hex:0:8}-${hex:8:4}-${hex:12:4}-${hex:16:4}-${hex:20:12}"
+    else
+        print_error "Failed to generate a new anonymousId"
+        exit 1
+    fi
+
+    echo "claudecode.v1.$uuid"
+}
+
 # Reset counters and usage statistics
 reset_counters() {
     local temp_file=$(mktemp)
@@ -229,6 +261,37 @@ reset_counters() {
     else
         rm -f "$temp_file"
         print_error "Failed to reset counters"
+        exit 1
+    fi
+}
+
+# Regenerate identity IDs while preserving the existing userID key style when present
+regenerate_identity_ids() {
+    local temp_file=$(mktemp)
+    local new_user_id
+    local new_anonymous_id
+    new_user_id=$(generate_user_id)
+    new_anonymous_id=$(generate_anonymous_id)
+
+    jq --arg user_id "$new_user_id" --arg anonymous_id "$new_anonymous_id" '
+        if has("userID") then
+            .userID = $user_id
+        elif has("user_id") then
+            .user_id = $user_id
+        elif has("userId") then
+            .userId = $user_id
+        else
+            .userID = $user_id
+        end
+        | .anonymousId = $anonymous_id
+    ' "$CLAUDE_JSON" > "$temp_file"
+
+    if [ $? -eq 0 ]; then
+        mv "$temp_file" "$CLAUDE_JSON"
+        print_success "Regenerated userID and anonymousId"
+    else
+        rm -f "$temp_file"
+        print_error "Failed to regenerate identity IDs"
         exit 1
     fi
 }
@@ -313,6 +376,7 @@ clean_all() {
     clear_github_repo_paths
     clear_history_jsonl
     reset_counters
+    regenerate_identity_ids
 
     print_success "Deep clean completed!"
 }
@@ -342,9 +406,10 @@ interactive_mode() {
     echo "  [c] Clear cache"
     echo "  [g] Clear GitHub repository paths"
     echo "  [f] Clear folders (file-history, projects, todos, shell-snapshots, statsig, debug, history.jsonl)"
+    echo "  [u] Regenerate userID and anonymousId"
     echo "  [q] Quit"
     echo
-    read -p "Enter selection (number/a/c/g/f/q): " selection
+    read -p "Enter selection (number/a/c/g/f/u/q): " selection
 
     case "$selection" in
         a|A)
@@ -376,6 +441,14 @@ interactive_mode() {
             if [[ "$confirm" =~ ^[Yy]$ ]]; then
                 clear_claude_folders
                 clear_history_jsonl
+            else
+                print_info "Cancelled"
+            fi
+            ;;
+        u|U)
+            read -p "Regenerate userID and anonymousId? (y/N): " confirm
+            if [[ "$confirm" =~ ^[Yy]$ ]]; then
+                regenerate_identity_ids
             else
                 print_info "Cancelled"
             fi
@@ -465,6 +538,10 @@ main() {
                 action="clear_folders"
                 shift
                 ;;
+            -u|--user-id)
+                action="regenerate_identity_ids"
+                shift
+                ;;
             --no-backup)
                 create_backup_flag=false
                 shift
@@ -516,6 +593,9 @@ main() {
         clear_folders)
             clear_claude_folders
             clear_history_jsonl
+            ;;
+        regenerate_identity_ids)
+            regenerate_identity_ids
             ;;
         *)
             print_error "Unknown action: $action"

@@ -23,7 +23,7 @@ The entire tool is a single Bash script (`cccleaner`) with no external dependenc
 
 **Operation Modes:**
 1. **Targeted cleaning** - Clear specific elements (cache, folders, individual projects)
-2. **Complete cleaning** (`--all`) - Runs all cleaning operations: histories + projects + folders + cache + history.jsonl + usage stats
+2. **Complete cleaning** (`--all`) - Runs all cleaning operations: histories + projects + folders + cache + history.jsonl + usage stats + identity ID regeneration
 3. **Interactive mode** - Menu-driven interface for selective cleaning
 
 ### Key Functions
@@ -36,6 +36,7 @@ The entire tool is a single Bash script (`cccleaner`) with no external dependenc
 - `clear_cache()` - Removes cached keys from .claude.json (cachedChangelog, cachedStatsigGates, cachedDynamicConfigs)
 - `clear_github_repo_paths()` - Removes githubRepoPaths from .claude.json
 - `reset_counters()` - Resets counters, firstStartTime, opus1mMergeNoticeSeenCount, and clears skillUsage/toolUsage
+- `regenerate_identity_ids()` - Replaces userID and anonymousId with newly generated values matching Claude Code's current formats
 - `clean_all()` - Orchestrates all cleaning functions
 
 **JSON Manipulation Pattern:**
@@ -61,6 +62,7 @@ All .claude.json modifications follow this pattern:
 ./cccleaner --cache           # Only cache
 ./cccleaner --github-repos    # Only githubRepoPaths
 ./cccleaner --folders         # Only folders + history.jsonl
+./cccleaner --user-id         # Only regenerate userID + anonymousId
 ./cccleaner --project /path   # Specific project
 ```
 
@@ -93,5 +95,5 @@ fi
 - The script uses `set -euo pipefail` for strict error handling
 - All modifications are atomic (via temp files)
 - The `--folders` option includes history.jsonl cleanup
-- The `--all` option is equivalent to running all individual cleaning operations (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + usage stats)
+- The `--all` option is equivalent to running all individual cleaning operations (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + usage stats + userID + anonymousId)
 - Project paths in interactive mode come from `jq -r '.projects | keys[]'`
