@@ -34,9 +34,9 @@ The repository also includes `install.sh`, which installs the script and provide
 - `clear_all_projects()` - Deletes all project entries from .claude.json (sets projects to {})
 - `clear_claude_folders()` - Removes contents from all ~/.claude subdirectories
 - `clear_history_jsonl()` - Truncates the history.jsonl file (doesn't delete, just empties)
-- `clear_cache()` - Removes cached keys from .claude.json (cachedChangelog, cachedStatsigGates, cachedDynamicConfigs)
+- `clear_cache()` - Removes cached keys from .claude.json (cachedChangelog, cachedStatsigGates, cachedDynamicConfigs, cachedGrowthBookFeatures, metricsStatusCache, clientDataCache) and resets groveConfigCache to `{}`
 - `clear_github_repo_paths()` - Removes githubRepoPaths from .claude.json
-- `reset_counters()` - Resets counters, firstStartTime, opus1mMergeNoticeSeenCount, and clears skillUsage/toolUsage
+- `reset_counters()` - Resets counters including numStartups, btwUseCount, promptQueueUseCount, opus1mMergeNoticeSeenCount, voiceNoticeSeenCount, firstStartTime, claudeCodeFirstTokenDate, and clears skillUsage/toolUsage
 - `regenerate_identity_ids()` - Replaces userID and anonymousId with newly generated values matching Claude Code's current formats
 - `set_us_timezone_override()` - Pins `TZ=America/Los_Angeles` in common shell startup files and the macOS login session
 - `clean_all()` - Orchestrates all cleaning functions

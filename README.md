@@ -12,7 +12,7 @@ A shell script to clean history and cached data from Claude Code's `~/.claude.js
 - Regenerate identity IDs in `~/.claude.json` (`userID` and `anonymousId`)
 - Clear `~/.claude` folder contents (file-history, projects, todos, shell-snapshots, statsig, debug)
 - Clear `~/.claude/history.jsonl`
-- Reset usage counters and usage statistics (numStartups, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, skillUsage, toolUsage, firstStartTime)
+- Reset usage counters and usage statistics (numStartups, btwUseCount, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, voiceNoticeSeenCount, skillUsage, toolUsage, firstStartTime, claudeCodeFirstTokenDate)
 - Set or remove `TZ=America/Los_Angeles` with dedicated commands
 - Clean all option (everything at once)
 - Interactive mode for easy selection
@@ -200,6 +200,10 @@ When using `--cache`, the following keys are removed from ~/.claude.json:
 - `cachedChangelog`
 - `cachedStatsigGates`
 - `cachedDynamicConfigs`
+- `cachedGrowthBookFeatures`
+- `metricsStatusCache`
+- `clientDataCache`
+- `groveConfigCache` - Reset to `{}`
 
 ### GitHub Repository Paths (--github-repos)
 When using `--github-repos`, the following key is removed from ~/.claude.json:
@@ -228,7 +232,7 @@ Performs all of the above cleaning operations at once, including:
 - Clearing cached data
 - Clearing GitHub repository paths
 - Clearing history.jsonl
-- Resetting usage counters (numStartups, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, firstStartTime)
+- Resetting usage counters (numStartups, btwUseCount, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, voiceNoticeSeenCount, firstStartTime, claudeCodeFirstTokenDate)
 - Clearing usage statistics (`skillUsage`, `toolUsage`)
 - Regenerating `userID`
 - Regenerating `anonymousId`
@@ -305,7 +309,7 @@ $ ./cccleaner --all
 [SUCCESS] Cleared cached data
 [SUCCESS] Cleared githubRepoPaths
 [SUCCESS] Cleared history.jsonl
-[SUCCESS] Reset numStartups, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, skillUsage, toolUsage, and firstStartTime
+[SUCCESS] Reset numStartups, btwUseCount, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, voiceNoticeSeenCount, firstStartTime, claudeCodeFirstTokenDate, skillUsage, and toolUsage
 [SUCCESS] Regenerated userID and anonymousId
 [SUCCESS] Deep clean completed!
 ```

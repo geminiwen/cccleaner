@@ -96,7 +96,7 @@ Options:
     -h, --help             Show this help message
     --no-backup            Skip backup creation (not recommended)
 
-Note: --all also resets numStartups, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, skillUsage, toolUsage, and regenerates userID plus anonymousId
+Note: --all also resets numStartups, btwUseCount, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, voiceNoticeSeenCount, firstStartTime, claudeCodeFirstTokenDate, skillUsage, toolUsage, and regenerates userID plus anonymousId
 
 Examples:
     $(basename "$0") --list
@@ -243,7 +243,14 @@ clear_all_projects() {
 clear_cache() {
     local temp_file=$(mktemp)
 
-    jq 'del(.cachedChangelog, .cachedStatsigGates, .cachedDynamicConfigs, .hasShownOpus45Notice) | .passesEligibilityCache = {} | .s1mAccessCache = {} | .lastPlanModeUse = 0 | .passesUpsellSeenCount = 0' "$CLAUDE_JSON" > "$temp_file"
+    jq '
+        del(.cachedChangelog, .cachedStatsigGates, .cachedDynamicConfigs, .cachedGrowthBookFeatures, .metricsStatusCache, .clientDataCache, .hasShownOpus45Notice)
+        | if has("groveConfigCache") then .groveConfigCache = {} else . end
+        | if has("passesEligibilityCache") then .passesEligibilityCache = {} else . end
+        | if has("s1mAccessCache") then .s1mAccessCache = {} else . end
+        | if has("lastPlanModeUse") then .lastPlanModeUse = 0 else . end
+        | if has("passesUpsellSeenCount") then .passesUpsellSeenCount = 0 else . end
+    ' "$CLAUDE_JSON" > "$temp_file"
 
     if [ $? -eq 0 ]; then
         mv "$temp_file" "$CLAUDE_JSON"
@@ -496,11 +503,22 @@ reset_counters() {
     local temp_file=$(mktemp)
     local current_time=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
 
-    jq --arg time "$current_time" '.numStartups = 0 | .promptQueueUseCount = 0 | .opus1mMergeNoticeSeenCount = 0 | .firstStartTime = $time | .skillUsage = {} | .toolUsage = {} | if .tipsHistory then .tipsHistory |= with_entries(.value = 0) else . end' "$CLAUDE_JSON" > "$temp_file"
+    jq --arg time "$current_time" '
+        if has("numStartups") then .numStartups = 0 else . end
+        | if has("btwUseCount") then .btwUseCount = 0 else . end
+        | if has("promptQueueUseCount") then .promptQueueUseCount = 0 else . end
+        | if has("opus1mMergeNoticeSeenCount") then .opus1mMergeNoticeSeenCount = 0 else . end
+        | if has("voiceNoticeSeenCount") then .voiceNoticeSeenCount = 0 else . end
+        | if has("firstStartTime") then .firstStartTime = $time else . end
+        | if has("claudeCodeFirstTokenDate") then .claudeCodeFirstTokenDate = $time else . end
+        | if has("skillUsage") then .skillUsage = {} else . end
+        | if has("toolUsage") then .toolUsage = {} else . end
+        | if has("tipsHistory") then .tipsHistory |= with_entries(.value = 0) else . end
+    ' "$CLAUDE_JSON" > "$temp_file"
 
     if [ $? -eq 0 ]; then
         mv "$temp_file" "$CLAUDE_JSON"
-        print_success "Reset numStartups, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, skillUsage, toolUsage, and firstStartTime"
+        print_success "Reset numStartups, btwUseCount, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, voiceNoticeSeenCount, firstStartTime, claudeCodeFirstTokenDate, skillUsage, and toolUsage"
     else
         rm -f "$temp_file"
         print_error "Failed to reset counters"
