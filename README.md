@@ -10,7 +10,7 @@ A shell script to clean history and cached data from Claude Code's `~/.claude.js
 - Clear cached data (changelog, gates, configs)
 - Clear GitHub repository paths
 - Regenerate identity IDs in `~/.claude.json` (`userID` and `anonymousId`)
-- Clear `~/.claude` folder contents (file-history, projects, todos, shell-snapshots, statsig, debug)
+- Clear `~/.claude` folder contents (file-history, projects, todos, shell-snapshots, statsig, debug, session-env, tasks, plans, paste-cache, telemetry, backups, stats-cache.json)
 - Clear `~/.claude/history.jsonl`
 - Reset usage counters and usage statistics (numStartups, btwUseCount, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, voiceNoticeSeenCount, skillUsage, toolUsage, firstStartTime, claudeCodeFirstTokenDate)
 - Set or remove `TZ=America/Los_Angeles` with dedicated commands
@@ -163,7 +163,7 @@ These helpers do not install or uninstall `cccleaner`; they only manage `TZ`.
 | `-i, --interactive` | Interactive mode to select projects |
 | `-c, --cache` | Clear cached data (changelog, etc.) |
 | `-g, --github-repos` | Clear GitHub repository paths |
-| `-f, --folders` | Clear ~/.claude folder contents (file-history, projects, todos, shell-snapshots, statsig, debug, history.jsonl) |
+| `-f, --folders` | Clear ~/.claude folder contents (file-history, projects, todos, shell-snapshots, statsig, debug, session-env, tasks, plans, paste-cache, telemetry, backups, stats-cache.json, history.jsonl) |
 | `-u, --user-id` | Regenerate identity IDs in ~/.claude.json (`userID` and `anonymousId`) |
 | `--set-us-timezone` | Set `TZ=America/Los_Angeles` in shell startup files and macOS LaunchAgent |
 | `--unset-timezone` | Remove `TZ` overrides from shell startup files and macOS LaunchAgent |
@@ -222,7 +222,16 @@ Clears contents of the following directories:
 - `~/.claude/shell-snapshots/` - Shell state snapshots
 - `~/.claude/statsig/` - Feature flags and statistics
 - `~/.claude/debug/` - Debug logs
+- `~/.claude/session-env/` - Session environment snapshots
+- `~/.claude/tasks/` - Task state and task logs
+- `~/.claude/plans/` - Saved plans
+- `~/.claude/paste-cache/` - Cached pasted content
+- `~/.claude/telemetry/` - Local telemetry event files
+- `~/.claude/backups/` - In-app backups under the Claude data dir
 - `~/.claude/history.jsonl` - Complete conversation history log
+
+Also clears:
+- `~/.claude/stats-cache.json` - Local stats cache file
 
 ### Clean All (--all)
 Performs all of the above cleaning operations at once, including:

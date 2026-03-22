@@ -89,7 +89,7 @@ Options:
     -i, --interactive      Interactive mode to select projects
     -c, --cache            Clear cached data (changelog, etc.)
     -g, --github-repos     Clear GitHub repository paths
-    -f, --folders          Clear ~/.claude folder contents (file-history, projects, todos, shell-snapshots, statsig, debug, session-env, history.jsonl)
+    -f, --folders          Clear ~/.claude folder contents (file-history, projects, todos, shell-snapshots, statsig, debug, session-env, tasks, plans, paste-cache, telemetry, backups, stats-cache.json, history.jsonl)
     -u, --user-id          Regenerate identity IDs in ~/.claude.json (userID + anonymousId)
     --set-us-timezone      Set TZ=America/Los_Angeles in shell files and macOS LaunchAgent
     --unset-timezone       Remove TZ overrides from shell files and macOS LaunchAgent
@@ -662,6 +662,48 @@ clear_claude_folders() {
         cleaned=1
     fi
 
+    # Clear tasks
+    if [ -d "$CLAUDE_DIR/tasks" ]; then
+        rm -rf "$CLAUDE_DIR/tasks"/*
+        print_success "Cleared tasks"
+        cleaned=1
+    fi
+
+    # Clear plans
+    if [ -d "$CLAUDE_DIR/plans" ]; then
+        rm -rf "$CLAUDE_DIR/plans"/*
+        print_success "Cleared plans"
+        cleaned=1
+    fi
+
+    # Clear paste-cache
+    if [ -d "$CLAUDE_DIR/paste-cache" ]; then
+        rm -rf "$CLAUDE_DIR/paste-cache"/*
+        print_success "Cleared paste-cache"
+        cleaned=1
+    fi
+
+    # Clear telemetry
+    if [ -d "$CLAUDE_DIR/telemetry" ]; then
+        rm -rf "$CLAUDE_DIR/telemetry"/*
+        print_success "Cleared telemetry"
+        cleaned=1
+    fi
+
+    # Clear backups
+    if [ -d "$CLAUDE_DIR/backups" ]; then
+        rm -rf "$CLAUDE_DIR/backups"/*
+        print_success "Cleared backups"
+        cleaned=1
+    fi
+
+    # Clear stats-cache.json
+    if [ -f "$CLAUDE_DIR/stats-cache.json" ]; then
+        : > "$CLAUDE_DIR/stats-cache.json"
+        print_success "Cleared stats-cache.json"
+        cleaned=1
+    fi
+
     if [ $cleaned -eq 0 ]; then
         print_warning "No folders found to clean"
     fi
@@ -749,7 +791,7 @@ interactive_mode() {
             fi
             ;;
         f|F)
-            read -p "Clear ~/.claude folders (file-history, projects, todos, shell-snapshots, statsig, debug, session-env, history.jsonl)? (y/N): " confirm
+            read -p "Clear ~/.claude folders (file-history, projects, todos, shell-snapshots, statsig, debug, session-env, tasks, plans, paste-cache, telemetry, backups, stats-cache.json, history.jsonl)? (y/N): " confirm
             if [[ "$confirm" =~ ^[Yy]$ ]]; then
                 clear_claude_folders
                 clear_history_jsonl
