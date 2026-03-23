@@ -3,8 +3,6 @@
 # cccleaner installation script
 # Usage:
 #   curl -s https://raw.githubusercontent.com/geminiwen/cccleaner/master/install.sh | bash
-#   curl -s https://raw.githubusercontent.com/geminiwen/cccleaner/master/install.sh | bash -s -- --set-us-timezone
-#   curl -s https://raw.githubusercontent.com/geminiwen/cccleaner/master/install.sh | bash -s -- --unset-timezone
 
 set -e
 
@@ -22,9 +20,6 @@ RAW_URL="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
 # Installation paths
 BIN_DIR="/usr/local/bin"
 ZSH_COMPLETION_DIR="/usr/local/share/zsh/site-functions"
-TZ_LAUNCH_AGENT_LABEL="com.cccleaner.env-tz"
-TZ_LAUNCH_AGENT_PATH="$HOME/Library/LaunchAgents/${TZ_LAUNCH_AGENT_LABEL}.plist"
-US_TIMEZONE="America/Los_Angeles"
 
 # Files to install
 SCRIPT_NAME="cccleaner"
@@ -62,279 +57,6 @@ write_if_changed() {
 
     mv "$candidate" "$target"
     return 0
-}
-
-remove_tz_exports() {
-    local file="$1"
-    local candidate
-
-    if [ ! -f "$file" ]; then
-        return 1
-    fi
-
-    candidate=$(mktemp "${TMP_DIR}/tz-file.XXXXXX")
-
-    awk '
-        /^[[:space:]]*export[[:space:]]+TZ=/ { next }
-        { lines[++n] = $0 }
-        END {
-            while (n > 0 && lines[n] ~ /^[[:space:]]*$/) {
-                n--
-            }
-            for (i = 1; i <= n; i++) {
-                print lines[i]
-            }
-            if (n > 0) {
-                printf "\n"
-            }
-        }
-    ' "$file" > "$candidate"
-
-    write_if_changed "$candidate" "$file"
-}
-
-ensure_tz_export_at_top() {
-    local file="$1"
-    local timezone="$2"
-    local filtered
-    local candidate
-
-    mkdir -p "$(dirname "$file")"
-    [ -f "$file" ] || : > "$file"
-
-    filtered=$(mktemp "${TMP_DIR}/tz-file.XXXXXX")
-    candidate=$(mktemp "${TMP_DIR}/tz-file.XXXXXX")
-    awk '
-        /^[[:space:]]*export[[:space:]]+TZ=/ { next }
-        !started && /^[[:space:]]*$/ { next }
-        {
-            started = 1
-            print
-        }
-    ' "$file" > "$filtered"
-
-    {
-        printf 'export TZ="%s"\n' "$timezone"
-        printf '\n'
-        cat "$filtered"
-    } > "$candidate"
-
-    rm -f "$filtered"
-    write_if_changed "$candidate" "$file"
-}
-
-ensure_tz_export_at_end() {
-    local file="$1"
-    local timezone="$2"
-    local filtered
-    local candidate
-
-    mkdir -p "$(dirname "$file")"
-    [ -f "$file" ] || : > "$file"
-
-    filtered=$(mktemp "${TMP_DIR}/tz-file.XXXXXX")
-    candidate=$(mktemp "${TMP_DIR}/tz-file.XXXXXX")
-
-    awk '
-        /^[[:space:]]*export[[:space:]]+TZ=/ { next }
-        { lines[++n] = $0 }
-        END {
-            while (n > 0 && lines[n] ~ /^[[:space:]]*$/) {
-                n--
-            }
-            for (i = 1; i <= n; i++) {
-                print lines[i]
-            }
-        }
-    ' "$file" > "$filtered"
-
-    {
-        if [ -s "$filtered" ]; then
-            cat "$filtered"
-            printf '\n\n'
-        fi
-        printf 'export TZ="%s"\n' "$timezone"
-    } > "$candidate"
-
-    rm -f "$filtered"
-    write_if_changed "$candidate" "$file"
-}
-
-write_timezone_launch_agent() {
-    local timezone="$1"
-
-    if [ "$(uname -s)" != "Darwin" ]; then
-        return 0
-    fi
-
-    mkdir -p "$(dirname "$TZ_LAUNCH_AGENT_PATH")"
-
-    cat > "$TZ_LAUNCH_AGENT_PATH" <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key>
-  <string>${TZ_LAUNCH_AGENT_LABEL}</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>launchctl</string>
-    <string>setenv</string>
-    <string>TZ</string>
-    <string>${timezone}</string>
-  </array>
-  <key>RunAtLoad</key>
-  <true/>
-</dict>
-</plist>
-EOF
-}
-
-refresh_launchctl_timezone() {
-    local timezone="$1"
-    local gui_domain
-
-    if [ "$(uname -s)" != "Darwin" ]; then
-        return 0
-    fi
-
-    if ! command -v launchctl > /dev/null 2>&1; then
-        print_warning "launchctl not found, skipped macOS session timezone sync."
-        return 0
-    fi
-
-    if ! launchctl setenv TZ "$timezone" > /dev/null 2>&1; then
-        print_warning "Failed to update launchctl environment for TZ."
-    fi
-
-    gui_domain="gui/$(id -u)"
-    launchctl bootout "$gui_domain" "$TZ_LAUNCH_AGENT_PATH" > /dev/null 2>&1 || true
-
-    if ! launchctl bootstrap "$gui_domain" "$TZ_LAUNCH_AGENT_PATH" > /dev/null 2>&1; then
-        print_warning "Failed to bootstrap LaunchAgent ${TZ_LAUNCH_AGENT_LABEL}."
-    fi
-
-    if ! launchctl kickstart -k "${gui_domain}/${TZ_LAUNCH_AGENT_LABEL}" > /dev/null 2>&1; then
-        print_warning "Failed to kickstart LaunchAgent ${TZ_LAUNCH_AGENT_LABEL}."
-    fi
-}
-
-remove_timezone_launch_agent() {
-    local gui_domain
-
-    if [ "$(uname -s)" != "Darwin" ]; then
-        return 0
-    fi
-
-    if ! command -v launchctl > /dev/null 2>&1; then
-        print_warning "launchctl not found, skipped macOS session timezone cleanup."
-        return 0
-    fi
-
-    gui_domain="gui/$(id -u)"
-    launchctl bootout "$gui_domain" "$TZ_LAUNCH_AGENT_PATH" > /dev/null 2>&1 || true
-
-    if [ -f "$TZ_LAUNCH_AGENT_PATH" ]; then
-        rm -f "$TZ_LAUNCH_AGENT_PATH"
-    fi
-
-    if ! launchctl unsetenv TZ > /dev/null 2>&1; then
-        print_warning "Failed to unset launchctl environment variable TZ."
-    fi
-}
-
-set_timezone() {
-    local timezone="$1"
-    local shell_files=(
-        "$HOME/.zshenv"
-        "$HOME/.zprofile"
-        "$HOME/.bash_profile"
-        "$HOME/.bashrc"
-        "$HOME/.profile"
-    )
-    local file
-
-    [ -n "$timezone" ] || print_error "set_timezone requires a timezone value."
-
-    print_info "Persisting TZ=${timezone} in shell startup files..."
-    for file in "${shell_files[@]}"; do
-        if ensure_tz_export_at_top "$file" "$timezone"; then
-            print_info "Updated $file"
-        else
-            print_info "No change for $file"
-        fi
-    done
-
-    if ensure_tz_export_at_end "$HOME/.zshrc" "$timezone"; then
-        print_info "Updated $HOME/.zshrc (tail guard)"
-    else
-        print_info "No change for $HOME/.zshrc"
-    fi
-
-    if [ "$(uname -s)" = "Darwin" ]; then
-        print_info "Writing macOS LaunchAgent..."
-        write_timezone_launch_agent "$timezone"
-    else
-        print_info "Skipping LaunchAgent setup on non-macOS system"
-    fi
-
-    print_info "Refreshing current macOS login session environment..."
-    refresh_launchctl_timezone "$timezone"
-
-    print_success "Timezone has been pinned to ${timezone}"
-    echo
-    echo "Verification in a fresh shell:"
-    echo "  zsh -lc 'echo \$TZ'"
-    echo "  bash -lc 'node -e \"console.log(process.env.TZ, Intl.DateTimeFormat().resolvedOptions().timeZone, new Date().toString())\"'"
-    echo "  launchctl getenv TZ"
-    echo
-    echo "Already-open terminals keep their current TZ until you refresh them:"
-    echo "  export TZ=\"${timezone}\""
-    echo "  exec \$SHELL -l"
-}
-
-unset_timezone() {
-    local shell_files=(
-        "$HOME/.zshenv"
-        "$HOME/.zprofile"
-        "$HOME/.bash_profile"
-        "$HOME/.bashrc"
-        "$HOME/.profile"
-        "$HOME/.zshrc"
-    )
-    local file
-
-    print_info "Removing TZ overrides from shell startup files..."
-    for file in "${shell_files[@]}"; do
-        if remove_tz_exports "$file"; then
-            print_info "Updated $file"
-        else
-            print_info "No change for $file"
-        fi
-    done
-
-    print_info "Removing macOS LaunchAgent and clearing current login session TZ..."
-    remove_timezone_launch_agent
-
-    print_success "Timezone override has been removed"
-    echo
-    echo "Verification in a fresh shell:"
-    echo "  zsh -lc 'echo \${TZ:-<unset>}'"
-    echo "  bash -lc 'node -e '\''console.log(process.env.TZ || \"<unset>\", Intl.DateTimeFormat().resolvedOptions().timeZone, new Date().toString())'\'''"
-    echo "  launchctl getenv TZ"
-}
-
-handle_timezone_command() {
-    case "${1:-}" in
-        --set-us-timezone)
-            set_timezone "$US_TIMEZONE"
-            exit 0
-            ;;
-        --unset-timezone)
-            unset_timezone
-            exit 0
-            ;;
-    esac
 }
 
 check_sudo() {
@@ -402,8 +124,6 @@ install_script() {
 }
 
 main() {
-    handle_timezone_command "${1:-}"
-
     echo "cccleaner installation script"
     echo "=============================="
     echo
@@ -461,10 +181,6 @@ main() {
     echo "  cccleaner --all"
     echo "  cccleaner --set-us-timezone"
     echo "  cccleaner --unset-timezone"
-    echo
-    echo "Install-script timezone helpers:"
-    echo "  bash install.sh --set-us-timezone"
-    echo "  bash install.sh --unset-timezone"
     echo
 }
 
