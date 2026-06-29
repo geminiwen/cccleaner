@@ -549,6 +549,8 @@ reset_counters() {
         | if has("opus1mMergeNoticeSeenCount") then .opus1mMergeNoticeSeenCount = 0 else . end
         | if has("voiceNoticeSeenCount") then .voiceNoticeSeenCount = 0 else . end
         | if has("slackAppInstallCount") then .slackAppInstallCount = 0 else . end
+        | if has("autoPermissionsNotificationCount") then .autoPermissionsNotificationCount = 0 else . end
+        | if has("remoteControlUpsellSeenCount") then .remoteControlUpsellSeenCount = 0 else . end
         | if has("closedIssuesLastChecked") then .closedIssuesLastChecked = 0 else . end
         | if has("passesLastSeenRemaining") then .passesLastSeenRemaining = 0 else . end
         | if has("ideHintShownCount") then .ideHintShownCount = 0 else . end
@@ -562,12 +564,12 @@ reset_counters() {
         | if has("feedbackSurveyState") then .feedbackSurveyState |= zero_leaves else . end
         | if has("tipsHistory") then .tipsHistory |= with_entries(.value = 0) else . end
         | if has("tipLifetimeShownCounts") then .tipLifetimeShownCounts |= zero_leaves else . end
-        | del(.firstStartTime, .lastShownEmergencyTip, .companion)
+        | del(.firstStartTime, .lastShownEmergencyTip, .companion, .lastOnboardingVersion, .lastReleaseNotesSeen)
     ' "$CLAUDE_JSON" > "$temp_file"
 
     if [ $? -eq 0 ]; then
         mv "$temp_file" "$CLAUDE_JSON"
-        print_success "Reset counters, tipsHistory, skillUsage, toolUsage, pluginUsage leaf values, agentLastUsed leaf values, feedbackSurveyState leaf values, and tipLifetimeShownCounts leaf values; removed firstStartTime, lastShownEmergencyTip, and companion"
+        print_success "Reset counters, tipsHistory, skillUsage, toolUsage, pluginUsage leaf values, agentLastUsed leaf values, feedbackSurveyState leaf values, and tipLifetimeShownCounts leaf values; removed firstStartTime, lastShownEmergencyTip, companion, lastOnboardingVersion, and lastReleaseNotesSeen"
     else
         rm -f "$temp_file"
         print_error "Failed to reset counters"
