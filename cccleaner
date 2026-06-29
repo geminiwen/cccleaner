@@ -7,6 +7,9 @@ set -euo pipefail
 
 CLAUDE_JSON="$HOME/.claude.json"
 CLAUDE_DIR="$HOME/.claude"
+CLAUDE_LOGS_DIR="$HOME/Library/Logs/Claude"
+CLAUDE_ANT_DID_FILE="$HOME/Library/Application Support/Claude/ant-did"
+CLAUDE_APP_CONFIG="$HOME/Library/Application Support/Claude/config.json"
 BACKUP_DIR="$HOME/.claude_backups"
 TZ_LAUNCH_AGENT_LABEL="com.cccleaner.env-tz"
 TZ_LAUNCH_AGENT_PATH="$HOME/Library/LaunchAgents/${TZ_LAUNCH_AGENT_LABEL}.plist"
@@ -83,20 +86,20 @@ Claude Code Cleaner - Clean history from ~/.claude.json
 Usage: $(basename "$0") [options]
 
 Options:
-    -a, --all              Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + usage stats + identity IDs)
+    -a, --all              Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + app logs + ant-did + counters + usage stats + identity IDs)
     -p, --project PATH     Clear history for specific project path
     -l, --list             List all projects
     -i, --interactive      Interactive mode to select projects
     -c, --cache            Clear cached data (changelog, etc.)
     -g, --github-repos     Clear GitHub repository paths
     -f, --folders          Clear ~/.claude folder contents (file-history, projects, todos, shell-snapshots, statsig, debug, session-env, tasks, plans, paste-cache, telemetry, backups, stats-cache.json, history.jsonl)
-    -u, --user-id          Regenerate identity IDs in ~/.claude.json (userID + anonymousId)
+    -u, --user-id          Regenerate identity IDs in ~/.claude.json (userID + anonymousId + machineID)
     --set-us-timezone      Set TZ=America/Los_Angeles in shell files and macOS LaunchAgent
     --unset-timezone       Remove TZ overrides from shell files and macOS LaunchAgent
     -h, --help             Show this help message
     --no-backup            Skip backup creation (not recommended)
 
-Note: --all also resets numStartups, btwUseCount, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, voiceNoticeSeenCount, firstStartTime, claudeCodeFirstTokenDate, skillUsage, toolUsage, and regenerates userID plus anonymousId
+Note: --all also resets counters, usage state, tip state, agent last-used state, and regenerates userID, anonymousId, and machineID
 
 Examples:
     $(basename "$0") --list
@@ -244,7 +247,19 @@ clear_cache() {
     local temp_file=$(mktemp)
 
     jq '
-        del(.cachedChangelog, .cachedStatsigGates, .cachedDynamicConfigs, .cachedGrowthBookFeatures, .metricsStatusCache, .clientDataCache, .hasShownOpus45Notice)
+        del(
+            .cachedChangelog,
+            .cachedStatsigGates,
+            .cachedDynamicConfigs,
+            .cachedGrowthBookFeatures,
+            .metricsStatusCache,
+            .clientDataCache,
+            .clientDataCacheSlots,
+            .additionalModelOptionsCache,
+            .overageCreditGrantCache,
+            .oauthAccount,
+            .hasShownOpus45Notice
+        )
         | if has("groveConfigCache") then .groveConfigCache = {} else . end
         | if has("passesEligibilityCache") then .passesEligibilityCache = {} else . end
         | if has("s1mAccessCache") then .s1mAccessCache = {} else . end
@@ -468,16 +483,28 @@ remove_timezone_launch_agent() {
     launchctl unsetenv TZ > /dev/null 2>&1 || print_warning "Failed to unset launchctl TZ"
 }
 
-# Generate a new 64-character lowercase hex userID
-generate_user_id() {
+# Generate a new 64-character lowercase hex ID
+generate_hex_id() {
+    local label="$1"
+
     if command -v openssl > /dev/null 2>&1; then
         openssl rand -hex 32
     elif [ -r /dev/urandom ]; then
         od -An -N32 -tx1 /dev/urandom | tr -d ' \n'
     else
-        print_error "Failed to generate a new userID"
+        print_error "Failed to generate a new $label"
         exit 1
     fi
+}
+
+# Generate a new 64-character lowercase hex userID
+generate_user_id() {
+    generate_hex_id "userID"
+}
+
+# Generate a new 64-character lowercase hex machineID
+generate_machine_id() {
+    generate_hex_id "machineID"
 }
 
 # Generate a new anonymousId matching Claude Code's current format
@@ -504,21 +531,38 @@ reset_counters() {
     local current_time=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
 
     jq --arg time "$current_time" '
+        def zero_leaves:
+            if type == "object" then
+                with_entries(.value |= zero_leaves)
+            elif type == "array" then
+                map(zero_leaves)
+            else
+                0
+            end;
+
         if has("numStartups") then .numStartups = 0 else . end
         | if has("btwUseCount") then .btwUseCount = 0 else . end
         | if has("promptQueueUseCount") then .promptQueueUseCount = 0 else . end
         | if has("opus1mMergeNoticeSeenCount") then .opus1mMergeNoticeSeenCount = 0 else . end
         | if has("voiceNoticeSeenCount") then .voiceNoticeSeenCount = 0 else . end
+        | if has("slackAppInstallCount") then .slackAppInstallCount = 0 else . end
+        | if has("closedIssuesLastChecked") then .closedIssuesLastChecked = 0 else . end
+        | if has("passesLastSeenRemaining") then .passesLastSeenRemaining = 0 else . end
+        | if has("ideHintShownCount") then .ideHintShownCount = 0 else . end
         | if has("firstStartTime") then .firstStartTime = $time else . end
         | if has("claudeCodeFirstTokenDate") then .claudeCodeFirstTokenDate = $time else . end
         | if has("skillUsage") then .skillUsage = {} else . end
         | if has("toolUsage") then .toolUsage = {} else . end
+        | if has("pluginUsage") then .pluginUsage |= zero_leaves else . end
+        | if has("agentLastUsed") then .agentLastUsed |= zero_leaves else . end
         | if has("tipsHistory") then .tipsHistory |= with_entries(.value = 0) else . end
+        | if has("tipLifetimeShownCounts") then .tipLifetimeShownCounts |= zero_leaves else . end
+        | del(.lastShownEmergencyTip)
     ' "$CLAUDE_JSON" > "$temp_file"
 
     if [ $? -eq 0 ]; then
         mv "$temp_file" "$CLAUDE_JSON"
-        print_success "Reset numStartups, btwUseCount, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, voiceNoticeSeenCount, firstStartTime, claudeCodeFirstTokenDate, skillUsage, and toolUsage"
+        print_success "Reset counters, tipsHistory, skillUsage, toolUsage, pluginUsage leaf values, agentLastUsed leaf values, and tipLifetimeShownCounts leaf values; removed lastShownEmergencyTip"
     else
         rm -f "$temp_file"
         print_error "Failed to reset counters"
@@ -531,10 +575,12 @@ regenerate_identity_ids() {
     local temp_file=$(mktemp)
     local new_user_id
     local new_anonymous_id
+    local new_machine_id
     new_user_id=$(generate_user_id)
     new_anonymous_id=$(generate_anonymous_id)
+    new_machine_id=$(generate_machine_id)
 
-    jq --arg user_id "$new_user_id" --arg anonymous_id "$new_anonymous_id" '
+    jq --arg user_id "$new_user_id" --arg anonymous_id "$new_anonymous_id" --arg machine_id "$new_machine_id" '
         if has("userID") then
             .userID = $user_id
         elif has("user_id") then
@@ -545,11 +591,12 @@ regenerate_identity_ids() {
             .userID = $user_id
         end
         | .anonymousId = $anonymous_id
+        | .machineID = $machine_id
     ' "$CLAUDE_JSON" > "$temp_file"
 
     if [ $? -eq 0 ]; then
         mv "$temp_file" "$CLAUDE_JSON"
-        print_success "Regenerated userID and anonymousId"
+        print_success "Regenerated userID, anonymousId, and machineID"
     else
         rm -f "$temp_file"
         print_error "Failed to regenerate identity IDs"
@@ -709,6 +756,40 @@ clear_claude_folders() {
     fi
 }
 
+# Clear Claude app data (logs and ant-did)
+clear_claude_app_data() {
+    local cleaned=0
+
+    if [ -d "$CLAUDE_LOGS_DIR" ]; then
+        rm -rf "$CLAUDE_LOGS_DIR"/*
+        print_success "Cleared ~/Library/Logs/Claude/"
+        cleaned=1
+    fi
+
+    if [ -f "$CLAUDE_ANT_DID_FILE" ]; then
+        rm -f "$CLAUDE_ANT_DID_FILE"
+        print_success "Removed ~/Library/Application Support/Claude/ant-did"
+        cleaned=1
+    fi
+
+    if [ -f "$CLAUDE_APP_CONFIG" ]; then
+        local temp_file=$(mktemp)
+        jq 'del(.["oauth:tokenCache"])' "$CLAUDE_APP_CONFIG" > "$temp_file"
+        if [ $? -eq 0 ]; then
+            mv "$temp_file" "$CLAUDE_APP_CONFIG"
+            print_success "Cleared oauth:tokenCache from Claude app config.json"
+            cleaned=1
+        else
+            rm -f "$temp_file"
+            print_error "Failed to clear Claude app config.json"
+        fi
+    fi
+
+    if [ $cleaned -eq 0 ]; then
+        print_warning "No Claude app data found to clean"
+    fi
+}
+
 # Clear history.jsonl
 clear_history_jsonl() {
     if [ -f "$CLAUDE_DIR/history.jsonl" ]; then
@@ -730,6 +811,7 @@ clean_all() {
     clear_cache
     clear_github_repo_paths
     clear_history_jsonl
+    clear_claude_app_data
     reset_counters
     regenerate_identity_ids
     print_success "Deep clean completed!"
@@ -760,7 +842,7 @@ interactive_mode() {
     echo "  [c] Clear cache"
     echo "  [g] Clear GitHub repository paths"
     echo "  [f] Clear folders (file-history, projects, todos, shell-snapshots, statsig, debug, history.jsonl)"
-    echo "  [u] Regenerate userID and anonymousId"
+    echo "  [u] Regenerate userID, anonymousId, and machineID"
     echo "  [q] Quit"
     echo
     read -p "Enter selection (number/a/c/g/f/u/q): " selection
@@ -800,7 +882,7 @@ interactive_mode() {
             fi
             ;;
         u|U)
-            read -p "Regenerate userID and anonymousId? (y/N): " confirm
+            read -p "Regenerate userID, anonymousId, and machineID? (y/N): " confirm
             if [[ "$confirm" =~ ^[Yy]$ ]]; then
                 regenerate_identity_ids
             else

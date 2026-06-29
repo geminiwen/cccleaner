@@ -24,7 +24,7 @@ The repository also includes `install.sh`, which installs the script and provide
 
 **Operation Modes:**
 1. **Targeted cleaning** - Clear specific elements (cache, folders, individual projects)
-2. **Complete cleaning** (`--all`) - Runs all cleaning operations: histories + projects + folders + cache + history.jsonl + usage stats + identity ID regeneration + US timezone setup
+2. **Complete cleaning** (`--all`) - Runs all cleaning operations: histories + projects + folders + cache + history.jsonl + app logs + ant-did + usage stats + identity ID regeneration + US timezone setup
 3. **Interactive mode** - Menu-driven interface for selective cleaning
 
 ### Key Functions
@@ -34,10 +34,11 @@ The repository also includes `install.sh`, which installs the script and provide
 - `clear_all_projects()` - Deletes all project entries from .claude.json (sets projects to {})
 - `clear_claude_folders()` - Removes contents from all ~/.claude subdirectories
 - `clear_history_jsonl()` - Truncates the history.jsonl file (doesn't delete, just empties)
-- `clear_cache()` - Removes cached keys from .claude.json (cachedChangelog, cachedStatsigGates, cachedDynamicConfigs, cachedGrowthBookFeatures, metricsStatusCache, clientDataCache) and resets groveConfigCache to `{}`
+- `clear_claude_app_data()` - Clears ~/Library/Logs/Claude/ and ~/Library/Application Support/Claude/ant-did
+- `clear_cache()` - Removes cached keys from .claude.json (cachedChangelog, cachedStatsigGates, cachedDynamicConfigs, cachedGrowthBookFeatures, metricsStatusCache, clientDataCache, clientDataCacheSlots, additionalModelOptionsCache, overageCreditGrantCache, oauthAccount) and resets groveConfigCache to `{}`
 - `clear_github_repo_paths()` - Removes githubRepoPaths from .claude.json
-- `reset_counters()` - Resets counters including numStartups, btwUseCount, promptQueueUseCount, opus1mMergeNoticeSeenCount, voiceNoticeSeenCount, firstStartTime, claudeCodeFirstTokenDate, and clears skillUsage/toolUsage
-- `regenerate_identity_ids()` - Replaces userID and anonymousId with newly generated values matching Claude Code's current formats
+- `reset_counters()` - Resets counters including numStartups, btwUseCount, promptQueueUseCount, opus1mMergeNoticeSeenCount, voiceNoticeSeenCount, slackAppInstallCount, closedIssuesLastChecked, passesLastSeenRemaining, ideHintShownCount, firstStartTime, claudeCodeFirstTokenDate, clears skillUsage/toolUsage, zeroes all leaf values in pluginUsage/agentLastUsed/tipLifetimeShownCounts, and removes lastShownEmergencyTip
+- `regenerate_identity_ids()` - Replaces userID, anonymousId, and machineID with newly generated values matching Claude Code's current formats
 - `set_us_timezone_override()` - Pins `TZ=America/Los_Angeles` in common shell startup files and the macOS login session
 - `clean_all()` - Orchestrates all cleaning functions
 
@@ -64,7 +65,7 @@ All .claude.json modifications follow this pattern:
 ./cccleaner --cache           # Only cache
 ./cccleaner --github-repos    # Only githubRepoPaths
 ./cccleaner --folders         # Only folders + history.jsonl
-./cccleaner --user-id         # Only regenerate userID + anonymousId
+./cccleaner --user-id         # Only regenerate userID + anonymousId + machineID
 ./cccleaner --project /path   # Specific project
 ```
 
@@ -97,7 +98,7 @@ fi
 - The script uses `set -euo pipefail` for strict error handling
 - All modifications are atomic (via temp files)
 - The `--folders` option includes history.jsonl cleanup
-- The `--all` option is equivalent to running all individual cleaning operations (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + usage stats + userID + anonymousId + US timezone setup)
+- The `--all` option is equivalent to running all individual cleaning operations (histories + projects + folders + cache + githubRepoPaths + history.jsonl + app logs + ant-did + counters + usage stats + userID + anonymousId + machineID + US timezone setup)
 - Project paths in interactive mode come from `jq -r '.projects | keys[]'`
 - `install.sh --set-us-timezone` pins `TZ=America/Los_Angeles` in shell startup files and the macOS login session
 - `install.sh --unset-timezone` removes those `TZ` overrides instead of resetting to a hard-coded default timezone

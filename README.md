@@ -9,10 +9,10 @@ A shell script to clean history and cached data from Claude Code's `~/.claude.js
 - Delete entire projects
 - Clear cached data (changelog, gates, configs)
 - Clear GitHub repository paths
-- Regenerate identity IDs in `~/.claude.json` (`userID` and `anonymousId`)
+- Regenerate identity IDs in `~/.claude.json` (`userID`, `anonymousId`, and `machineID`)
 - Clear `~/.claude` folder contents (file-history, projects, todos, shell-snapshots, statsig, debug, session-env, tasks, plans, paste-cache, telemetry, backups, stats-cache.json)
 - Clear `~/.claude/history.jsonl`
-- Reset usage counters and usage statistics (numStartups, btwUseCount, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, voiceNoticeSeenCount, skillUsage, toolUsage, firstStartTime, claudeCodeFirstTokenDate)
+- Reset usage counters and usage statistics (numStartups, btwUseCount, promptQueueUseCount, tipsHistory, tipLifetimeShownCounts leaf values, lastShownEmergencyTip, opus1mMergeNoticeSeenCount, voiceNoticeSeenCount, slackAppInstallCount, closedIssuesLastChecked, passesLastSeenRemaining, ideHintShownCount, skillUsage, toolUsage, pluginUsage leaf values, agentLastUsed leaf values, firstStartTime, claudeCodeFirstTokenDate)
 - Set or remove `TZ=America/Los_Angeles` with dedicated commands
 - Clean all option (everything at once)
 - Interactive mode for easy selection
@@ -157,14 +157,14 @@ These helpers do not install or uninstall `cccleaner`; they only manage `TZ`.
 
 | Option | Description |
 |--------|-------------|
-| `-a, --all` | Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + usage stats + userID + anonymousId) |
+| `-a, --all` | Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + usage stats + userID + anonymousId + machineID) |
 | `-p, --project PATH` | Clear history for specific project path |
 | `-l, --list` | List all projects |
 | `-i, --interactive` | Interactive mode to select projects |
 | `-c, --cache` | Clear cached data (changelog, etc.) |
 | `-g, --github-repos` | Clear GitHub repository paths |
 | `-f, --folders` | Clear ~/.claude folder contents (file-history, projects, todos, shell-snapshots, statsig, debug, session-env, tasks, plans, paste-cache, telemetry, backups, stats-cache.json, history.jsonl) |
-| `-u, --user-id` | Regenerate identity IDs in ~/.claude.json (`userID` and `anonymousId`) |
+| `-u, --user-id` | Regenerate identity IDs in ~/.claude.json (`userID`, `anonymousId`, and `machineID`) |
 | `--set-us-timezone` | Set `TZ=America/Los_Angeles` in shell startup files and macOS LaunchAgent |
 | `--unset-timezone` | Remove `TZ` overrides from shell startup files and macOS LaunchAgent |
 | `-h, --help` | Show help message |
@@ -203,6 +203,10 @@ When using `--cache`, the following keys are removed from ~/.claude.json:
 - `cachedGrowthBookFeatures`
 - `metricsStatusCache`
 - `clientDataCache`
+- `clientDataCacheSlots`
+- `additionalModelOptionsCache`
+- `overageCreditGrantCache`
+- `oauthAccount`
 - `groveConfigCache` - Reset to `{}`
 
 ### GitHub Repository Paths (--github-repos)
@@ -213,6 +217,7 @@ When using `--github-repos`, the following key is removed from ~/.claude.json:
 When using `--user-id`, the script regenerates Claude Code identity identifiers:
 - `userID` - Replaced with a newly generated 64-character lowercase hexadecimal string
 - `anonymousId` - Replaced with a newly generated `claudecode.v1.<uuid>` identifier
+- `machineID` - Replaced with a newly generated 64-character lowercase hexadecimal string
 
 ### Claude Folders (--folders)
 Clears contents of the following directories:
@@ -241,10 +246,15 @@ Performs all of the above cleaning operations at once, including:
 - Clearing cached data
 - Clearing GitHub repository paths
 - Clearing history.jsonl
-- Resetting usage counters (numStartups, btwUseCount, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, voiceNoticeSeenCount, firstStartTime, claudeCodeFirstTokenDate)
+- Resetting usage counters (numStartups, btwUseCount, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, voiceNoticeSeenCount, slackAppInstallCount, closedIssuesLastChecked, passesLastSeenRemaining, ideHintShownCount, firstStartTime, claudeCodeFirstTokenDate)
+- Zeroing all leaf values in `tipLifetimeShownCounts`
+- Removing `lastShownEmergencyTip`
 - Clearing usage statistics (`skillUsage`, `toolUsage`)
+- Zeroing all leaf values in `pluginUsage`
+- Zeroing all leaf values in `agentLastUsed`
 - Regenerating `userID`
 - Regenerating `anonymousId`
+- Regenerating `machineID`
 
 ### Timezone Commands
 Dedicated timezone commands are available separately from `--all`:
@@ -257,7 +267,6 @@ Dedicated timezone commands are available separately from `--all`:
 ### What's NOT Touched
 The script preserves:
 - Global settings (installMethod, autoUpdates, etc.)
-- Authentication data
 - Project settings (allowedTools, mcpServers, etc.) - when using --folders only
 - Feature flags (except cached ones)
 - `~/.claude/commands/` - Custom slash commands
@@ -283,9 +292,10 @@ Options:
   [c] Clear cache
   [g] Clear GitHub repository paths
   [f] Clear folders (file-history, projects, todos, shell-snapshots, statsig, debug, history.jsonl)
+  [u] Regenerate userID, anonymousId, and machineID
   [q] Quit
 
-Enter selection (number/a/c/g/f/q): 1
+Enter selection (number/a/c/g/f/u/q): 1
 
 What would you like to do with: /Users/john/Code/myapp
   [1] Clear history only
@@ -318,8 +328,8 @@ $ ./cccleaner --all
 [SUCCESS] Cleared cached data
 [SUCCESS] Cleared githubRepoPaths
 [SUCCESS] Cleared history.jsonl
-[SUCCESS] Reset numStartups, btwUseCount, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, voiceNoticeSeenCount, firstStartTime, claudeCodeFirstTokenDate, skillUsage, and toolUsage
-[SUCCESS] Regenerated userID and anonymousId
+[SUCCESS] Reset counters, tipsHistory, skillUsage, toolUsage, pluginUsage leaf values, agentLastUsed leaf values, and tipLifetimeShownCounts leaf values; removed lastShownEmergencyTip
+[SUCCESS] Regenerated userID, anonymousId, and machineID
 [SUCCESS] Deep clean completed!
 ```
 
