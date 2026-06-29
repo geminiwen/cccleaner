@@ -12,7 +12,7 @@ A shell script to clean history and cached data from Claude Code's `~/.claude.js
 - Regenerate identity IDs in `~/.claude.json` (`userID`, `anonymousId`, and `machineID`)
 - Clear `~/.claude` folder contents (file-history, projects, todos, shell-snapshots, statsig, debug, session-env, tasks, plans, paste-cache, telemetry, backups, stats-cache.json)
 - Clear `~/.claude/history.jsonl`
-- Reset usage counters and usage statistics (numStartups, btwUseCount, promptQueueUseCount, tipsHistory, tipLifetimeShownCounts leaf values, lastShownEmergencyTip, opus1mMergeNoticeSeenCount, voiceNoticeSeenCount, slackAppInstallCount, closedIssuesLastChecked, passesLastSeenRemaining, ideHintShownCount, skillUsage, toolUsage, pluginUsage leaf values, agentLastUsed leaf values, firstStartTime, claudeCodeFirstTokenDate)
+- Reset usage counters and usage statistics (numStartups, btwUseCount, promptQueueUseCount, tipsHistory, tipLifetimeShownCounts leaf values, firstStartTime, lastShownEmergencyTip, companion, opus1mMergeNoticeSeenCount, voiceNoticeSeenCount, slackAppInstallCount, closedIssuesLastChecked, passesLastSeenRemaining, ideHintShownCount, opusProMigrationTimestamp, routineFiredWatermark, skillUsage, toolUsage, pluginUsage leaf values, agentLastUsed leaf values, feedbackSurveyState leaf values, claudeCodeFirstTokenDate)
 - Set or remove `TZ=America/Los_Angeles` with dedicated commands
 - Clean all option (everything at once)
 - Interactive mode for easy selection
@@ -201,12 +201,15 @@ When using `--cache`, the following keys are removed from ~/.claude.json:
 - `cachedStatsigGates`
 - `cachedDynamicConfigs`
 - `cachedGrowthBookFeatures`
+- `cachedGrowthBookFeaturesAt`
 - `metricsStatusCache`
 - `clientDataCache`
 - `clientDataCacheSlots`
 - `additionalModelOptionsCache`
 - `overageCreditGrantCache`
 - `oauthAccount`
+- `chromeExtension`
+- `changelogLastFetched` - Reset to `0`
 - `groveConfigCache` - Reset to `{}`
 
 ### GitHub Repository Paths (--github-repos)
@@ -246,12 +249,16 @@ Performs all of the above cleaning operations at once, including:
 - Clearing cached data
 - Clearing GitHub repository paths
 - Clearing history.jsonl
-- Resetting usage counters (numStartups, btwUseCount, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, voiceNoticeSeenCount, slackAppInstallCount, closedIssuesLastChecked, passesLastSeenRemaining, ideHintShownCount, firstStartTime, claudeCodeFirstTokenDate)
+- Resetting usage counters (numStartups, btwUseCount, promptQueueUseCount, tipsHistory, opus1mMergeNoticeSeenCount, voiceNoticeSeenCount, slackAppInstallCount, closedIssuesLastChecked, passesLastSeenRemaining, ideHintShownCount, opusProMigrationTimestamp, claudeCodeFirstTokenDate)
+- Setting `routineFiredWatermark` to the current UTC timestamp
+- Removing `firstStartTime`
 - Zeroing all leaf values in `tipLifetimeShownCounts`
 - Removing `lastShownEmergencyTip`
+- Removing `companion`
 - Clearing usage statistics (`skillUsage`, `toolUsage`)
 - Zeroing all leaf values in `pluginUsage`
 - Zeroing all leaf values in `agentLastUsed`
+- Zeroing all leaf values in `feedbackSurveyState`
 - Regenerating `userID`
 - Regenerating `anonymousId`
 - Regenerating `machineID`
@@ -328,7 +335,7 @@ $ ./cccleaner --all
 [SUCCESS] Cleared cached data
 [SUCCESS] Cleared githubRepoPaths
 [SUCCESS] Cleared history.jsonl
-[SUCCESS] Reset counters, tipsHistory, skillUsage, toolUsage, pluginUsage leaf values, agentLastUsed leaf values, and tipLifetimeShownCounts leaf values; removed lastShownEmergencyTip
+[SUCCESS] Reset counters, tipsHistory, skillUsage, toolUsage, pluginUsage leaf values, agentLastUsed leaf values, feedbackSurveyState leaf values, and tipLifetimeShownCounts leaf values; removed firstStartTime, lastShownEmergencyTip, and companion
 [SUCCESS] Regenerated userID, anonymousId, and machineID
 [SUCCESS] Deep clean completed!
 ```
