@@ -243,6 +243,7 @@ Also clears:
 
 ### Clean All (--all)
 Performs all of the above cleaning operations at once, including:
+- Stopping verified Claude bridge processes, then removing their `replBridgePlaceholders` records (`cse_…` keys). Records for live processes that cannot be verified or stopped are kept.
 - Clearing all project histories
 - Deleting all projects
 - Clearing all ~/.claude folders
@@ -264,6 +265,8 @@ Performs all of the above cleaning operations at once, including:
 - Regenerating `userID`
 - Regenerating `anonymousId`
 - Regenerating `machineID`
+
+If you run `--all` from inside Claude Code, the cleaner keeps the Claude process that launched it and that process's bridge record. Run the cleaner from a separate terminal to stop that process too.
 
 ### Timezone Commands
 Dedicated timezone commands are available separately from `--all`:

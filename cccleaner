@@ -86,7 +86,7 @@ Claude Code Cleaner - Clean history from ~/.claude.json
 Usage: $(basename "$0") [options]
 
 Options:
-    -a, --all              Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + app logs + ant-did + counters + usage stats + identity IDs)
+    -a, --all              Clean everything (stops verified bridge processes, then clears histories + projects + folders + cache + bridge placeholders + githubRepoPaths + history.jsonl + app logs + ant-did + counters + usage stats + identity IDs)
     -p, --project PATH     Clear history for specific project path
     -l, --list             List all projects
     -i, --interactive      Interactive mode to select projects
@@ -100,6 +100,7 @@ Options:
     --no-backup            Skip backup creation (not recommended)
 
 Note: --all also resets counters, usage state, tip state, agent last-used state, and regenerates userID, anonymousId, and machineID
+      If launched from Claude Code, --all keeps its own parent process and bridge record.
 
 Examples:
     $(basename "$0") --list
@@ -293,6 +294,116 @@ clear_github_repo_paths() {
         rm -f "$temp_file"
         print_error "Failed to clear githubRepoPaths"
         exit 1
+    fi
+}
+
+# Match Claude Code's process-start token without changing spaces inside it.
+bridge_process_start() {
+    (LC_ALL=C TZ=UTC ps -p "$1" -o lstart= 2>/dev/null || true) | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+}
+
+# A bridge record can point at the Claude process that launched this script.
+is_ancestor_process() {
+    local candidate="$1"
+    local current=$$
+    local parent
+
+    while [[ "$current" =~ ^[0-9]+$ ]] && [ "$current" -gt 1 ]; do
+        [ "$current" = "$candidate" ] && return 0
+        parent=$( (ps -p "$current" -o ppid= 2>/dev/null || true) | tr -d '[:space:]')
+        [ -n "$parent" ] && [ "$parent" != "$current" ] || break
+        current="$parent"
+    done
+    return 1
+}
+
+# Stop verified Claude bridge owners before removing their local records.
+# Keep records for live processes whose identity or termination is uncertain.
+stop_and_clear_repl_bridge_placeholders() {
+    local entries entry key pid expected current command state attempt
+    local removed='[]'
+    local temp_file
+
+    entries=$(jq -c '(.replBridgePlaceholders // {}) | to_entries[] | {key, pid: .value.pid?, procStart: .value.procStart?}' "$CLAUDE_JSON") || {
+        print_error "Failed to read REPL bridge placeholders"
+        exit 1
+    }
+
+    while IFS= read -r entry; do
+        [ -n "$entry" ] || continue
+        key=$(jq -r '.key' <<< "$entry")
+        pid=$(jq -r '.pid // empty' <<< "$entry")
+        expected=$(jq -r '.procStart // empty' <<< "$entry")
+
+        if ! [[ "$pid" =~ ^[1-9][0-9]*$ ]]; then
+            removed=$(jq -c --arg key "$key" '. + [$key]' <<< "$removed")
+            continue
+        fi
+
+        current=$(bridge_process_start "$pid")
+        if [ -z "$current" ]; then
+            if kill -0 "$pid" 2>/dev/null; then
+                print_warning "Cannot verify live bridge process $pid; keeping its record"
+            else
+                removed=$(jq -c --arg key "$key" '. + [$key]' <<< "$removed")
+            fi
+            continue
+        fi
+
+        command=$( (ps -p "$pid" -o comm= 2>/dev/null || true) | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        if [[ ! "$key" =~ ^(session|cse)_[A-Za-z0-9_-]+$ ]] || [ -z "$expected" ] || [ "$current" != "$expected" ] || [ "${command##*/}" != "claude" ]; then
+            print_warning "Bridge record for live process $pid cannot be verified; keeping it"
+            continue
+        fi
+        if is_ancestor_process "$pid"; then
+            print_warning "Bridge process $pid launched this cleanup; keeping it and its record"
+            continue
+        fi
+
+        if ! kill -TERM "$pid" 2>/dev/null; then
+            print_warning "Could not stop bridge process $pid; keeping its record"
+            continue
+        fi
+
+        for attempt in {1..20}; do
+            sleep 0.1
+            current=$(bridge_process_start "$pid")
+            state=$( (ps -p "$pid" -o stat= 2>/dev/null || true) | tr -d '[:space:]')
+            if [ -z "$current" ] || [ "$current" != "$expected" ] || [[ "$state" == Z* ]]; then
+                break
+            fi
+        done
+
+        current=$(bridge_process_start "$pid")
+        state=$( (ps -p "$pid" -o stat= 2>/dev/null || true) | tr -d '[:space:]')
+        if [ "$current" = "$expected" ] && [[ "$state" != Z* ]]; then
+            command=$( (ps -p "$pid" -o comm= 2>/dev/null || true) | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            if [ "${command##*/}" = "claude" ]; then
+                kill -KILL "$pid" 2>/dev/null || true
+                sleep 0.1
+            fi
+        fi
+
+        current=$(bridge_process_start "$pid")
+        state=$( (ps -p "$pid" -o stat= 2>/dev/null || true) | tr -d '[:space:]')
+        if [ "$current" = "$expected" ] && [[ "$state" != Z* ]]; then
+            print_warning "Bridge process $pid is still running; keeping its record"
+        else
+            print_success "Stopped bridge process $pid"
+            removed=$(jq -c --arg key "$key" '. + [$key]' <<< "$removed")
+        fi
+    done <<< "$entries"
+
+    if [ "$removed" != '[]' ]; then
+        temp_file=$(mktemp)
+        if jq --argjson keys "$removed" 'reduce $keys[] as $key (. ; del(.replBridgePlaceholders[$key])) | if .replBridgePlaceholders == {} then del(.replBridgePlaceholders) else . end' "$CLAUDE_JSON" > "$temp_file"; then
+            mv "$temp_file" "$CLAUDE_JSON"
+            print_success "Cleared stopped or stale REPL bridge placeholders"
+        else
+            rm -f "$temp_file"
+            print_error "Failed to clear REPL bridge placeholders"
+            exit 1
+        fi
     fi
 }
 
@@ -812,6 +923,7 @@ clean_all() {
     print_info "Performing deep clean..."
     echo
 
+    stop_and_clear_repl_bridge_placeholders
     clear_all_histories
     clear_all_projects
     clear_claude_folders
