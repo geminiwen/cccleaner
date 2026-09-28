@@ -24,7 +24,7 @@ The repository also includes `install.sh`, which installs the script and provide
 
 **Operation Modes:**
 1. **Targeted cleaning** - Clear specific elements (cache, folders, individual projects)
-2. **Complete cleaning** (`--all`) - Runs all cleaning operations: histories + projects + folders + cache + history.jsonl + app logs + ant-did + usage stats + identity ID regeneration + US timezone setup
+2. **Complete cleaning** (`--all`) - Runs all cleaning operations: histories + projects + folders + cache + history.jsonl + app logs + ant-did + usage stats + identity ID regeneration + Cowork device credentials
 3. **Interactive mode** - Menu-driven interface for selective cleaning
 
 ### Key Functions
@@ -40,6 +40,7 @@ The repository also includes `install.sh`, which installs the script and provide
 - `clear_github_repo_paths()` - Removes githubRepoPaths from .claude.json
 - `reset_counters()` - Resets counters including numStartups, btwUseCount, promptQueueUseCount, opus1mMergeNoticeSeenCount, voiceNoticeSeenCount, slackAppInstallCount, autoPermissionsNotificationCount, remoteControlUpsellSeenCount, closedIssuesLastChecked, passesLastSeenRemaining, ideHintShownCount, opusProMigrationTimestamp, claudeCodeFirstTokenDate, sets routineFiredWatermark to the current UTC timestamp, clears skillUsage/toolUsage, zeroes all leaf values in pluginUsage/agentLastUsed/feedbackSurveyState/tipLifetimeShownCounts, and removes firstStartTime/lastShownEmergencyTip/companion/lastOnboardingVersion/lastReleaseNotesSeen
 - `regenerate_identity_ids()` - Replaces userID, anonymousId, and machineID with newly generated values matching Claude Code's current formats
+- `clear_device_credentials()` - Deletes the Cowork device private key: keychain service `Claude Code-device-keys`, the legacy `coworkRemoteDevice` field inside `Claude Code-credentials*`, and `~/.claude/.device-keys.json`
 - `set_us_timezone_override()` - Pins `TZ=America/Los_Angeles` in common shell startup files and the macOS login session
 - `clean_all()` - Orchestrates all cleaning functions
 
@@ -67,6 +68,7 @@ All .claude.json modifications follow this pattern:
 ./cccleaner --github-repos    # Only githubRepoPaths
 ./cccleaner --folders         # Only folders + history.jsonl
 ./cccleaner --user-id         # Only regenerate userID + anonymousId + machineID
+./cccleaner --device-keys     # Only Cowork device credentials
 ./cccleaner --project /path   # Specific project
 ```
 
@@ -99,7 +101,7 @@ fi
 - The script uses `set -euo pipefail` for strict error handling
 - All modifications are atomic (via temp files)
 - The `--folders` option includes history.jsonl cleanup
-- The `--all` option is equivalent to running all individual cleaning operations (histories + projects + folders + cache + githubRepoPaths + history.jsonl + app logs + ant-did + counters + usage stats + userID + anonymousId + machineID + US timezone setup)
+- The `--all` option is equivalent to running all individual cleaning operations (histories + projects + folders + cache + githubRepoPaths + history.jsonl + app logs + ant-did + counters + usage stats + userID + anonymousId + machineID + Cowork device credentials). Timezone overrides are separate commands.
 - Project paths in interactive mode come from `jq -r '.projects | keys[]'`
 - `install.sh --set-us-timezone` pins `TZ=America/Los_Angeles` in shell startup files and the macOS login session
 - `install.sh --unset-timezone` removes those `TZ` overrides instead of resetting to a hard-coded default timezone

@@ -16,10 +16,10 @@ cleanup() {
     [ -z "$bridge_pid" ] || wait "$bridge_pid" 2>/dev/null || true
     [ -z "$stubborn_pid" ] || wait "$stubborn_pid" 2>/dev/null || true
     [ -z "$other_pid" ] || wait "$other_pid" 2>/dev/null || true
-    for file in "$test_dir/home/.claude.json" "$test_dir/claude" "$test_dir/claude.c" "$test_dir/output" "$test_dir/stubborn-ready" "$test_dir/cccleaner-functions"; do
+    for file in "$test_dir/home/.claude.json" "$test_dir/claude" "$test_dir/claude.c" "$test_dir/output" "$test_dir/stubborn-ready" "$test_dir/cccleaner-functions" "$test_dir/bin/security"; do
         [ ! -e "$file" ] || unlink "$file"
     done
-    rmdir "$test_dir/home" "$test_dir/tmp" "$test_dir"
+    rmdir "$test_dir/bin" "$test_dir/home" "$test_dir/tmp" "$test_dir"
 }
 trap cleanup EXIT
 
@@ -71,7 +71,14 @@ jq -n \
         cse_gone: {pid: 99999999, procStart: "old start", createdAt: 1}
     }}' > "$test_dir/home/.claude.json"
 
-HOME="$test_dir/home" TMPDIR="$test_dir/tmp" "$repo_dir/cccleaner" --all --no-backup > "$test_dir/output"
+mkdir "$test_dir/bin"
+cat > "$test_dir/bin/security" << 'EOF'
+#!/bin/bash
+exit 44
+EOF
+chmod +x "$test_dir/bin/security"
+
+PATH="$test_dir/bin:$PATH" HOME="$test_dir/home" TMPDIR="$test_dir/tmp" "$repo_dir/cccleaner" --all --no-backup > "$test_dir/output"
 
 wait "$bridge_pid" 2>/dev/null || true
 bridge_pid=""

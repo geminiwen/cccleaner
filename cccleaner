@@ -86,7 +86,7 @@ Claude Code Cleaner - Clean history from ~/.claude.json
 Usage: $(basename "$0") [options]
 
 Options:
-    -a, --all              Clean everything (stops verified bridge processes, then clears histories + projects + folders + cache + bridge placeholders + githubRepoPaths + history.jsonl + app logs + ant-did + counters + usage stats + identity IDs)
+    -a, --all              Clean everything (stops verified bridge processes, then clears histories + projects + folders + cache + bridge placeholders + githubRepoPaths + history.jsonl + app logs + ant-did + counters + usage stats + identity IDs + device credentials)
     -p, --project PATH     Clear history for specific project path
     -l, --list             List all projects
     -i, --interactive      Interactive mode to select projects
@@ -94,13 +94,15 @@ Options:
     -g, --github-repos     Clear GitHub repository paths
     -f, --folders          Clear ~/.claude folder contents (file-history, projects, todos, shell-snapshots, statsig, debug, session-env, tasks, plans, paste-cache, telemetry, backups, stats-cache.json, history.jsonl)
     -u, --user-id          Regenerate identity IDs in ~/.claude.json (userID + anonymousId + machineID)
+    --device-keys          Delete Cowork device credentials (keychain item Claude Code-device-keys, legacy coworkRemoteDevice, ~/.claude/.device-keys.json)
     --set-us-timezone      Set TZ=America/Los_Angeles in shell files and macOS LaunchAgent
     --unset-timezone       Remove TZ overrides from shell files and macOS LaunchAgent
     -h, --help             Show this help message
     --no-backup            Skip backup creation (not recommended)
 
-Note: --all also resets counters, usage state, tip state, agent last-used state, and regenerates userID, anonymousId, and machineID
+Note: --all also resets counters, usage state, tip state, agent last-used state, regenerates userID, anonymousId, and machineID, and deletes Cowork device credentials
       If launched from Claude Code, --all keeps its own parent process and bridge record.
+      --device-keys removes the device private key. The Claude Code login in Claude Code-credentials stays; only its coworkRemoteDevice field is removed.
 
 Examples:
     $(basename "$0") --list
@@ -108,6 +110,7 @@ Examples:
     $(basename "$0") --folders
     $(basename "$0") --github-repos
     $(basename "$0") --user-id
+    $(basename "$0") --device-keys
     $(basename "$0") --set-us-timezone
     $(basename "$0") --unset-timezone
     $(basename "$0") --project /Users/user/myproject
@@ -918,6 +921,189 @@ clear_history_jsonl() {
     fi
 }
 
+# Claude Code 2.1.x writes the Cowork device private key to the login keychain
+# as a generic password. The service name is fixed. Account is $USER, or
+# "claude-code-user" when USER is empty or not a keychain-safe name.
+DEVICE_KEY_SERVICE="Claude Code-device-keys"
+# Item-not-found from `security` on macOS.
+SECURITY_ITEM_NOT_FOUND=44
+
+# Remove the on-disk device-key fallback and its write lock.
+# macOS normally stores the key in the keychain; the file is the other backend.
+clear_device_key_files() {
+    local path base
+
+    path="$CLAUDE_DIR/.device-keys.json"
+    if [ -e "$path" ] || [ -L "$path" ]; then
+        rm -f "$path"
+        print_success "Removed ~/.claude/.device-keys.json"
+        device_credentials_removed=1
+    fi
+
+    if [ -d "$CLAUDE_DIR" ]; then
+        for path in "$CLAUDE_DIR"/.device-keys.json.corrupt-*; do
+            [ -e "$path" ] || [ -L "$path" ] || continue
+            base=$(basename "$path")
+            rm -f "$path"
+            print_success "Removed ~/.claude/$base"
+            device_credentials_removed=1
+        done
+    fi
+
+    path="$CLAUDE_DIR/.device-keys"
+    if [ -L "$path" ] || [ -f "$path" ]; then
+        rm -f "$path"
+        print_success "Removed ~/.claude/.device-keys"
+        device_credentials_removed=1
+    elif [ -d "$path" ]; then
+        rm -rf "$path"
+        print_success "Removed ~/.claude/.device-keys"
+        device_credentials_removed=1
+    fi
+}
+
+# Print acct<FS>service for every Claude Code-credentials* generic password.
+# Metadata only: `security dump-keychain` without -d does not include secrets.
+list_claude_credential_items() {
+    local listed keychains=() line dump status kc
+
+    listed=$(security list-keychains 2>/dev/null) || listed=""
+    while IFS= read -r line; do
+        line=${line//\"/}
+        line="${line#"${line%%[![:space:]]*}"}"
+        line="${line%"${line##*[![:space:]]}"}"
+        [ -n "$line" ] || continue
+        keychains+=("$line")
+    done <<< "$listed"
+
+    if [ ${#keychains[@]} -eq 0 ]; then
+        keychains+=("")
+    fi
+
+    for kc in "${keychains[@]}"; do
+        status=0
+        if [ -n "$kc" ]; then
+            dump=$(security dump-keychain "$kc" 2>/dev/null) || status=$?
+        else
+            dump=$(security dump-keychain 2>/dev/null) || status=$?
+        fi
+        if [ "$status" -ne 0 ]; then
+            continue
+        fi
+        printf '%s\n' "$dump" | awk '
+            function take(line, key, rest) {
+                rest = line
+                if (index(rest, "\"" key "\"<blob>=\"") == 0) {
+                    return ""
+                }
+                sub(".*\"" key "\"<blob>=\"", "", rest)
+                sub("\".*", "", rest)
+                return rest
+            }
+            function flush() {
+                if (svce ~ /^Claude Code-credentials(-|$)/ && acct != "") {
+                    printf "%s\034%s\n", acct, svce
+                }
+                acct = ""
+                svce = ""
+            }
+            /^keychain:/ { flush(); next }
+            /"acct"<blob>="/ { acct = take($0, "acct") }
+            /"svce"<blob>="/ { svce = take($0, "svce") }
+            END { flush() }
+        '
+    done
+}
+
+# Delete every generic password stored under the device-key service.
+delete_device_key_items() {
+    local removed=0 status
+
+    while true; do
+        status=0
+        security delete-generic-password -s "$DEVICE_KEY_SERVICE" >/dev/null 2>&1 || status=$?
+        if [ "$status" -eq 0 ]; then
+            removed=$((removed + 1))
+            if [ "$removed" -ge 20 ]; then
+                print_warning "Stopped after removing 20 keychain items for $DEVICE_KEY_SERVICE"
+                break
+            fi
+            continue
+        fi
+        if [ "$status" -ne "$SECURITY_ITEM_NOT_FOUND" ]; then
+            print_warning "Could not delete keychain item $DEVICE_KEY_SERVICE (security exited $status)"
+        fi
+        break
+    done
+
+    if [ "$removed" -gt 0 ]; then
+        print_success "Removed $removed keychain item(s): $DEVICE_KEY_SERVICE"
+        device_credentials_removed=1
+    fi
+}
+
+# Drop the legacy device key from a Claude Code login item.
+# The rest of that item, including claudeAiOauth, stays.
+strip_legacy_device_key() {
+    local acct="$1"
+    local svc="$2"
+    local raw status updated
+
+    status=0
+    raw=$(security find-generic-password -a "$acct" -s "$svc" -w 2>/dev/null) || status=$?
+    if [ "$status" -eq "$SECURITY_ITEM_NOT_FOUND" ]; then
+        return 0
+    fi
+    if [ "$status" -ne 0 ]; then
+        print_warning "Could not read keychain item $svc (security exited $status)"
+        return 0
+    fi
+    if ! printf '%s' "$raw" | jq -e 'type == "object" and has("coworkRemoteDevice")' >/dev/null 2>&1; then
+        return 0
+    fi
+
+    updated=$(printf '%s' "$raw" | jq -c 'del(.coworkRemoteDevice)') || {
+        print_error "Failed to remove coworkRemoteDevice from $svc"
+        exit 1
+    }
+    status=0
+    security add-generic-password -U -a "$acct" -s "$svc" -w "$updated" >/dev/null 2>&1 || status=$?
+    if [ "$status" -ne 0 ]; then
+        print_error "Failed to update keychain item $svc (security exited $status)"
+        exit 1
+    fi
+    print_success "Removed coworkRemoteDevice from keychain item $svc"
+    device_credentials_removed=1
+}
+
+# Delete Cowork device credentials from the keychain and from ~/.claude.
+clear_device_credentials() {
+    local items line acct svc
+
+    device_credentials_removed=0
+    clear_device_key_files
+
+    if [ "$(uname -s)" != "Darwin" ]; then
+        print_warning "Keychain device credentials are only removed on macOS"
+    elif ! command -v security >/dev/null 2>&1; then
+        print_warning "security not found, skipped keychain device credentials"
+    else
+        delete_device_key_items
+        items=$(list_claude_credential_items || true)
+        while IFS= read -r line; do
+            [ -n "$line" ] || continue
+            acct=${line%%$'\034'*}
+            svc=${line#*$'\034'}
+            [ -n "$acct" ] && [ -n "$svc" ] && [ "$acct" != "$svc" ] || continue
+            strip_legacy_device_key "$acct" "$svc"
+        done <<< "$items"
+    fi
+
+    if [ "$device_credentials_removed" -eq 0 ]; then
+        print_warning "No Cowork device credentials found"
+    fi
+}
+
 # Clean everything
 clean_all() {
     print_info "Performing deep clean..."
@@ -933,6 +1119,7 @@ clean_all() {
     clear_claude_app_data
     reset_counters
     regenerate_identity_ids
+    clear_device_credentials
     print_success "Deep clean completed!"
 }
 
@@ -962,9 +1149,10 @@ interactive_mode() {
     echo "  [g] Clear GitHub repository paths"
     echo "  [f] Clear folders (file-history, projects, todos, shell-snapshots, statsig, debug, history.jsonl)"
     echo "  [u] Regenerate userID, anonymousId, and machineID"
+    echo "  [d] Delete Cowork device credentials"
     echo "  [q] Quit"
     echo
-    read -p "Enter selection (number/a/c/g/f/u/q): " selection
+    read -p "Enter selection (number/a/c/g/f/u/d/q): " selection
 
     case "$selection" in
         a|A)
@@ -1004,6 +1192,14 @@ interactive_mode() {
             read -p "Regenerate userID, anonymousId, and machineID? (y/N): " confirm
             if [[ "$confirm" =~ ^[Yy]$ ]]; then
                 regenerate_identity_ids
+            else
+                print_info "Cancelled"
+            fi
+            ;;
+        d|D)
+            read -p "Delete Cowork device credentials from the keychain and ~/.claude? (y/N): " confirm
+            if [[ "$confirm" =~ ^[Yy]$ ]]; then
+                clear_device_credentials
             else
                 print_info "Cancelled"
             fi
@@ -1097,6 +1293,10 @@ main() {
                 action="regenerate_identity_ids"
                 shift
                 ;;
+            --device-keys)
+                action="clear_device_credentials"
+                shift
+                ;;
             --set-us-timezone)
                 action="set_timezone"
                 shift
@@ -1172,6 +1372,9 @@ main() {
             ;;
         regenerate_identity_ids)
             regenerate_identity_ids
+            ;;
+        clear_device_credentials)
+            clear_device_credentials
             ;;
         set_timezone)
             set_us_timezone_override

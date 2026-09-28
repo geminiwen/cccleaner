@@ -10,6 +10,7 @@ A shell script to clean history and cached data from Claude Code's `~/.claude.js
 - Clear cached data (changelog, gates, configs)
 - Clear GitHub repository paths
 - Regenerate identity IDs in `~/.claude.json` (`userID`, `anonymousId`, and `machineID`)
+- Delete Cowork device credentials (keychain item `Claude Code-device-keys`, legacy `coworkRemoteDevice`, and `~/.claude/.device-keys.json`)
 - Clear `~/.claude` folder contents (file-history, projects, todos, shell-snapshots, statsig, debug, session-env, tasks, plans, paste-cache, telemetry, backups, stats-cache.json)
 - Clear `~/.claude/history.jsonl`
 - Reset usage counters and usage statistics (numStartups, btwUseCount, promptQueueUseCount, tipsHistory, tipLifetimeShownCounts leaf values, firstStartTime, lastShownEmergencyTip, companion, lastOnboardingVersion, lastReleaseNotesSeen, opus1mMergeNoticeSeenCount, voiceNoticeSeenCount, slackAppInstallCount, autoPermissionsNotificationCount, remoteControlUpsellSeenCount, closedIssuesLastChecked, passesLastSeenRemaining, ideHintShownCount, opusProMigrationTimestamp, routineFiredWatermark, skillUsage, toolUsage, pluginUsage leaf values, agentLastUsed leaf values, feedbackSurveyState leaf values, claudeCodeFirstTokenDate)
@@ -138,6 +139,11 @@ These helpers do not install or uninstall `cccleaner`; they only manage `TZ`.
 ./cccleaner --user-id
 ```
 
+### Delete Cowork device credentials
+```bash
+./cccleaner --device-keys
+```
+
 ### Set US timezone override
 ```bash
 ./cccleaner --set-us-timezone
@@ -157,7 +163,7 @@ These helpers do not install or uninstall `cccleaner`; they only manage `TZ`.
 
 | Option | Description |
 |--------|-------------|
-| `-a, --all` | Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + usage stats + userID + anonymousId + machineID) |
+| `-a, --all` | Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + usage stats + userID + anonymousId + machineID + device credentials) |
 | `-p, --project PATH` | Clear history for specific project path |
 | `-l, --list` | List all projects |
 | `-i, --interactive` | Interactive mode to select projects |
@@ -165,6 +171,7 @@ These helpers do not install or uninstall `cccleaner`; they only manage `TZ`.
 | `-g, --github-repos` | Clear GitHub repository paths |
 | `-f, --folders` | Clear ~/.claude folder contents (file-history, projects, todos, shell-snapshots, statsig, debug, session-env, tasks, plans, paste-cache, telemetry, backups, stats-cache.json, history.jsonl) |
 | `-u, --user-id` | Regenerate identity IDs in ~/.claude.json (`userID`, `anonymousId`, and `machineID`) |
+| `--device-keys` | Delete Cowork device credentials: keychain item `Claude Code-device-keys`, the `coworkRemoteDevice` field inside `Claude Code-credentials`, and `~/.claude/.device-keys.json` |
 | `--set-us-timezone` | Set `TZ=America/Los_Angeles` in shell startup files and macOS LaunchAgent |
 | `--unset-timezone` | Remove `TZ` overrides from shell startup files and macOS LaunchAgent |
 | `-h, --help` | Show help message |
@@ -265,8 +272,18 @@ Performs all of the above cleaning operations at once, including:
 - Regenerating `userID`
 - Regenerating `anonymousId`
 - Regenerating `machineID`
+- Deleting Cowork device credentials (see below)
 
 If you run `--all` from inside Claude Code, the cleaner keeps the Claude process that launched it and that process's bridge record. Run the cleaner from a separate terminal to stop that process too.
+
+### Device Credentials (--device-keys, --all)
+Removes the Cowork device private key:
+
+- Login keychain generic password whose service is `Claude Code-device-keys`
+- `coworkRemoteDevice` inside each `Claude Code-credentials` and `Claude Code-credentials-*` keychain item
+- `~/.claude/.device-keys.json`, quarantine files named `.device-keys.json.corrupt-*`, and the `.device-keys` write lock
+
+The Claude Code login stored in `Claude Code-credentials` stays. The keychain item is deleted directly and is not copied into `~/.claude_backups/`. A `.device-keys.json` file that already exists is included in the normal `~/.claude` directory backup.
 
 ### Timezone Commands
 Dedicated timezone commands are available separately from `--all`:
