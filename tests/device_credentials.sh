@@ -182,16 +182,21 @@ run_cleaner() {
 
 assert_removed() {
     local output=$1
+    local mode=${2:-device}
     [ ! -e "$test_dir/home/.claude/.device-keys.json" ]
     [ ! -e "$test_dir/home/.claude/.device-keys.json.corrupt-1-2-aa" ]
     [ ! -e "$test_dir/home/.claude/.device-keys" ]
     [ ! -d "$test_dir/store/1" ]
     [ ! -d "$test_dir/store/2" ]
-    jq -e '.claudeAiOauth.accessToken == "keep-me" and (has("coworkRemoteDevice") | not)' "$test_dir/store/3/secret" >/dev/null
+    if [ "$mode" = all ]; then
+        [ ! -d "$test_dir/store/3" ]
+    else
+        jq -e '.claudeAiOauth.accessToken == "keep-me" and (has("coworkRemoteDevice") | not)' "$test_dir/store/3/secret" >/dev/null
+        grep -q "coworkRemoteDevice" "$output"
+    fi
     cmp -s "$test_dir/store/4/secret" "$test_dir/credentials-suffix-before"
     grep -q "Claude Code-device-keys" "$output"
-    grep -q "coworkRemoteDevice" "$output"
-    if grep -q "keep-me\|legacy-private\|device-private\|file-private" "$output"; then
+    if grep -q "keep-me\|legacy-private\|device-private\|file-private\|suffix-private\|suffix-login" "$output"; then
         echo "device credential material leaked into output" >&2
         exit 1
     fi
@@ -206,6 +211,14 @@ grep -q "No Cowork device credentials found" "$test_dir/output"
 
 seed_store
 run_cleaner --all --no-backup > "$test_dir/output"
-assert_removed "$test_dir/output"
+assert_removed "$test_dir/output" all
+
+# Full cleanup still removes legacy device keys from suffixed login items,
+# preserving their OAuth and MCP data without recreating the base login item.
+seed_store
+printf '%s' '{"claudeAiOauth":{"accessToken":"suffix-login"},"mcpOAuth":{"clientId":"leave-me"},"coworkRemoteDevice":{"privateKeyPkcs8B64":"suffix-private"}}' > "$test_dir/store/4/secret"
+printf '%s' '{"claudeAiOauth":{"accessToken":"suffix-login"},"mcpOAuth":{"clientId":"leave-me"}}' > "$test_dir/credentials-suffix-before"
+run_cleaner --all --no-backup > "$test_dir/output"
+assert_removed "$test_dir/output" all
 
 echo "Device credential cleanup checks passed"

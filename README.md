@@ -8,6 +8,7 @@ A shell script to clean history and cached data from Claude Code's `~/.claude.js
 - Clear specific project history
 - Delete entire projects
 - Clear cached data (changelog, gates, configs)
+- Delete Claude Code login credentials and device keys from macOS Keychain with `--all`
 - Clear GitHub repository paths
 - Regenerate identity IDs in `~/.claude.json` (`userID`, `anonymousId`, and `machineID`)
 - Delete Cowork device credentials (keychain item `Claude Code-device-keys`, legacy `coworkRemoteDevice`, and `~/.claude/.device-keys.json`)
@@ -163,7 +164,7 @@ These helpers do not install or uninstall `cccleaner`; they only manage `TZ`.
 
 | Option | Description |
 |--------|-------------|
-| `-a, --all` | Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + usage stats + userID + anonymousId + machineID + device credentials) |
+| `-a, --all` | Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + usage stats + userID + anonymousId + machineID + device credentials + macOS Keychain credentials) |
 | `-p, --project PATH` | Clear history for specific project path |
 | `-l, --list` | List all projects |
 | `-i, --interactive` | Interactive mode to select projects |
@@ -194,6 +195,8 @@ cp ~/.claude_backups/claude_claude.json_20250117_143022 ~/.claude.json
 # Restore .claude directory
 cp -r ~/.claude_backups/claude_dir_20250117_143022 ~/.claude
 ```
+
+Keychain credentials are deleted without backup by `--all`. Filesystem backups cannot restore them; sign in to Claude Code again after cleaning.
 
 ## What Gets Cleaned?
 
@@ -250,6 +253,7 @@ Also clears:
 
 ### Clean All (--all)
 Performs all of the above cleaning operations at once, including:
+- Deleting all matching items for the exact macOS Keychain services `Claude Code-credentials` (including OAuth login) and `Claude Code-device-keys` from the default Keychain search list; suffixed `Claude Code-credentials-*` services retain their login data, with only legacy device keys removed as described below
 - Stopping verified Claude bridge processes, then removing their `replBridgePlaceholders` records (`cse_…` keys). Records for live processes that cannot be verified or stopped are kept.
 - Clearing all project histories
 - Deleting all projects
@@ -276,6 +280,8 @@ Performs all of the above cleaning operations at once, including:
 
 If you run `--all` from inside Claude Code, the cleaner keeps the Claude process that launched it and that process's bridge record. Run the cleaner from a separate terminal to stop that process too.
 
+Keychain login cleanup runs first and stops with an error if access is denied or items remain after 20 deletions for a service. On other platforms it is skipped. Only `--all` deletes the login item; `--device-keys` removes device credentials while preserving login.
+
 ### Device Credentials (--device-keys, --all)
 Removes the Cowork device private key:
 
@@ -283,7 +289,7 @@ Removes the Cowork device private key:
 - `coworkRemoteDevice` inside each `Claude Code-credentials` and `Claude Code-credentials-*` keychain item
 - `~/.claude/.device-keys.json`, quarantine files named `.device-keys.json.corrupt-*`, and the `.device-keys` write lock
 
-The Claude Code login stored in `Claude Code-credentials` stays. The keychain item is deleted directly and is not copied into `~/.claude_backups/`. A `.device-keys.json` file that already exists is included in the normal `~/.claude` directory backup.
+With `--device-keys`, the Claude Code login stored in `Claude Code-credentials` stays. With `--all`, that login item is deleted and you must sign in again. The keychain item is deleted directly and is not copied into `~/.claude_backups/`. A `.device-keys.json` file that already exists is included in the normal `~/.claude` directory backup.
 
 ### Timezone Commands
 Dedicated timezone commands are available separately from `--all`:

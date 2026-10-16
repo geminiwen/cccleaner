@@ -20,7 +20,7 @@ _cccleaner() {
   options=(
     '(- *)'{-h,--help}'[Show help message and exit]'
     '(- *)'{-l,--list}'[List all projects and exit]'
-    '(-p --project -i --interactive -c --cache -g --github-repos -f --folders -u --user-id --device-keys --set-us-timezone --unset-timezone)'{-a,--all}'[Clean everything (histories + projects + folders + cache + githubRepoPaths + history.jsonl + counters + userID + anonymousId + machineID + device credentials)]'
+    '(-p --project -i --interactive -c --cache -g --github-repos -f --folders -u --user-id --device-keys --set-us-timezone --unset-timezone)'{-a,--all}'[Clean everything including macOS Keychain login credentials and device keys]'
     '(-a --all -i --interactive -c --cache -g --github-repos -f --folders -u --user-id --device-keys --set-us-timezone --unset-timezone)'{-p,--project}'[Clear history for specific project]:project path:->projects'
     '(-a --all -p --project -c --cache -g --github-repos -f --folders -u --user-id --device-keys --set-us-timezone --unset-timezone)'{-i,--interactive}'[Interactive mode to select projects]'
     '(-a --all -p --project -i --interactive -g --github-repos -f --folders -u --user-id --device-keys --set-us-timezone --unset-timezone)'{-c,--cache}'[Clear cached data (changelog, etc.)]'

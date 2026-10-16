@@ -86,7 +86,7 @@ Claude Code Cleaner - Clean history from ~/.claude.json
 Usage: $(basename "$0") [options]
 
 Options:
-    -a, --all              Clean everything (stops verified bridge processes, then clears histories + projects + folders + cache + bridge placeholders + githubRepoPaths + history.jsonl + app logs + ant-did + counters + usage stats + identity IDs + device credentials)
+    -a, --all              Clean everything (stops verified bridge processes, then clears histories + projects + folders + cache + bridge placeholders + githubRepoPaths + history.jsonl + app logs + ant-did + counters + usage stats + identity IDs + device credentials + macOS Keychain login credentials)
     -p, --project PATH     Clear history for specific project path
     -l, --list             List all projects
     -i, --interactive      Interactive mode to select projects
@@ -103,6 +103,7 @@ Options:
 Note: --all also resets counters, usage state, tip state, agent last-used state, regenerates userID, anonymousId, and machineID, and deletes Cowork device credentials
       If launched from Claude Code, --all keeps its own parent process and bridge record.
       --device-keys removes the device private key. The Claude Code login in Claude Code-credentials stays; only its coworkRemoteDevice field is removed.
+On macOS, --all deletes Claude Code login credentials and device keys from Keychain without backup; sign in again afterward.
 
 Examples:
     $(basename "$0") --list
@@ -1104,11 +1105,54 @@ clear_device_credentials() {
     fi
 }
 
+# Delete Claude Code login credentials and device keys without reading secrets.
+clear_claude_keychain() {
+    if [ "$(uname -s)" != "Darwin" ]; then
+        print_info "Skipping macOS Keychain cleanup on this platform"
+        return 0
+    fi
+
+    if ! command -v security >/dev/null 2>&1; then
+        print_error "macOS security command is required for Keychain cleanup"
+        return 1
+    fi
+
+    print_warning "Deleting Claude Code Keychain login credentials and device keys without backup; sign in again afterward"
+    local service status deleted
+    for service in "Claude Code-credentials" "Claude Code-device-keys"; do
+        deleted=0
+        while true; do
+            # Check after the limit too: exactly 20 items is a successful cleanup.
+            if [ "$deleted" -eq 20 ]; then
+                if security find-generic-password -s "$service" >/dev/null 2>&1; then
+                    print_error "Keychain cleanup limit reached for $service; items remain"
+                    return 1
+                else
+                    status=$?
+                fi
+            elif security delete-generic-password -s "$service" >/dev/null 2>&1; then
+                deleted=$((deleted + 1))
+                continue
+            else
+                status=$?
+            fi
+
+            if [ "$status" -eq 44 ]; then
+                print_success "Cleared Keychain service: $service ($deleted items deleted)"
+                break
+            fi
+            print_error "Failed to clean Keychain service $service (security exit $status)"
+            return 1
+        done
+    done
+}
+
 # Clean everything
 clean_all() {
     print_info "Performing deep clean..."
     echo
 
+    clear_claude_keychain
     stop_and_clear_repl_bridge_placeholders
     clear_all_histories
     clear_all_projects

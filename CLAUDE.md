@@ -11,6 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Single Script Design
 The main cleaner is a single Bash script (`cccleaner`) with no external dependencies except `jq` for JSON manipulation.
 The repository also includes `install.sh`, which installs the script and provides optional timezone helper commands.
+On macOS, `--all` also uses the system `security` command to delete Claude Code Keychain credentials.
 
 ### Core Components
 
@@ -30,6 +31,7 @@ The repository also includes `install.sh`, which installs the script and provide
 ### Key Functions
 
 **Cleaning Operations:**
+- `clear_claude_keychain()` - Deletes the exact macOS Keychain services Claude Code-credentials and Claude Code-device-keys, including OAuth login. Runs first in `--all`; skips other platforms, fails on access errors, and limits deletion to 20 items per service. Does not export or back up secrets.
 - `clear_all_histories()` - Empties the `history` array in each project within .claude.json
 - `clear_all_projects()` - Deletes all project entries from .claude.json (sets projects to {})
 - `clear_claude_folders()` - Removes contents from all ~/.claude subdirectories
