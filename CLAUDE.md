@@ -18,6 +18,7 @@ On macOS, `--all` also uses the system `security` command to delete Claude Code 
 **Data Sources:**
 - `~/.claude.json` - Main configuration file containing project histories and cached data
 - `~/.claude/` directory - Contains multiple subdirectories (file-history, projects, todos, shell-snapshots, statsig, debug) and history.jsonl
+- `~/Library/Caches/claude-cli-nodejs/` - Deleted entirely without backup by `--cache` and `--all`
 
 **Backup System:**
 - All operations create timestamped backups in `~/.claude_backups/` before modification

@@ -7,7 +7,7 @@ A shell script to clean history and cached data from Claude Code's `~/.claude.js
 - Clear all project histories at once
 - Clear specific project history
 - Delete entire projects
-- Clear cached data (changelog, gates, configs)
+- Clear cached data (changelog, gates, configs) and delete `~/Library/Caches/claude-cli-nodejs/` entirely
 - Delete Claude Code login credentials and device keys from macOS Keychain with `--all`
 - Clear GitHub repository paths
 - Regenerate identity IDs in `~/.claude.json` (`userID`, `anonymousId`, and `machineID`)
@@ -168,7 +168,7 @@ These helpers do not install or uninstall `cccleaner`; they only manage `TZ`.
 | `-p, --project PATH` | Clear history for specific project path |
 | `-l, --list` | List all projects |
 | `-i, --interactive` | Interactive mode to select projects |
-| `-c, --cache` | Clear cached data (changelog, etc.) |
+| `-c, --cache` | Clear cached data and delete `~/Library/Caches/claude-cli-nodejs/` entirely |
 | `-g, --github-repos` | Clear GitHub repository paths |
 | `-f, --folders` | Clear ~/.claude folder contents (file-history, projects, todos, shell-snapshots, statsig, debug, session-env, tasks, plans, paste-cache, telemetry, backups, stats-cache.json, history.jsonl) |
 | `-u, --user-id` | Regenerate identity IDs in ~/.claude.json (`userID`, `anonymousId`, and `machineID`) |
@@ -206,6 +206,8 @@ The script clears the `history` array in each project, which contains:
 - Pasted contents
 
 ### Cached Data (--cache)
+Both `--cache` and `--all` delete the entire `~/Library/Caches/claude-cli-nodejs/` directory, including hidden files, without backing up this cache directory. A missing directory is harmless.
+
 When using `--cache`, the following keys are removed from ~/.claude.json:
 - `cachedChangelog`
 - `cachedStatsigGates`

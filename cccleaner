@@ -7,6 +7,7 @@ set -euo pipefail
 
 CLAUDE_JSON="$HOME/.claude.json"
 CLAUDE_DIR="$HOME/.claude"
+CLAUDE_NODE_CACHE_DIR="$HOME/Library/Caches/claude-cli-nodejs"
 CLAUDE_LOGS_DIR="$HOME/Library/Logs/Claude"
 CLAUDE_ANT_DID_FILE="$HOME/Library/Application Support/Claude/ant-did"
 CLAUDE_APP_CONFIG="$HOME/Library/Application Support/Claude/config.json"
@@ -90,7 +91,7 @@ Options:
     -p, --project PATH     Clear history for specific project path
     -l, --list             List all projects
     -i, --interactive      Interactive mode to select projects
-    -c, --cache            Clear cached data (changelog, etc.)
+    -c, --cache            Clear cached data and delete ~/Library/Caches/claude-cli-nodejs/ entirely (no cache directory backup)
     -g, --github-repos     Clear GitHub repository paths
     -f, --folders          Clear ~/.claude folder contents (file-history, projects, todos, shell-snapshots, statsig, debug, session-env, tasks, plans, paste-cache, telemetry, backups, stats-cache.json, history.jsonl)
     -u, --user-id          Regenerate identity IDs in ~/.claude.json (userID + anonymousId + machineID)
@@ -283,6 +284,9 @@ clear_cache() {
         print_error "Failed to clear cache"
         exit 1
     fi
+
+    rm -rf -- "$CLAUDE_NODE_CACHE_DIR"
+    print_success "Removed ~/Library/Caches/claude-cli-nodejs/"
 }
 
 # Clear GitHub repo paths
